@@ -1,13 +1,29 @@
-import { coverageOf } from '@pinloop/shared';
+import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { readSession } from '../lib/session.ts';
+import { SignOutButton } from './sign-out-button.tsx';
 
-export default function HomePage() {
-  const coverage = coverageOf(0, 0);
+export default async function HomePage() {
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((cookie) => `${cookie.name}=${cookie.value}`)
+    .join('; ');
+  const session = await readSession(cookieHeader);
+  const signedIn = Boolean(session.accessToken);
+
   return (
     <main>
       <h1>Pinloop</h1>
-      <p>
-        packages/web is wired up. Shared coverage helper says {coverage.covered}/{coverage.total}.
-      </p>
+      {signedIn ? (
+        <p>
+          Signed in{session.email ? ` as ${session.email}` : ''}. <SignOutButton />
+        </p>
+      ) : (
+        <p>
+          <Link href="/sign-in">Sign in</Link> to get started.
+        </p>
+      )}
     </main>
   );
 }
