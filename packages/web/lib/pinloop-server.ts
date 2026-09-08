@@ -36,12 +36,11 @@ async function rawCall(
   const response = await doFetch(`${SERVER_URL}${path}`, {
     method: options.method ?? 'GET',
     headers,
-    body:
-      options.bytes !== undefined
-        ? options.bytes
-        : options.body === undefined
-          ? undefined
-          : JSON.stringify(options.body),
+    body: (options.bytes !== undefined
+      ? options.bytes
+      : options.body === undefined
+        ? undefined
+        : JSON.stringify(options.body)) as BodyInit | undefined,
   });
 
   const text = await response.text();
