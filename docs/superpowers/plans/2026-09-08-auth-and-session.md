@@ -262,7 +262,7 @@ export async function callAsAccount(
 npx vitest run packages/web/lib/pinloop-server.test.ts
 ```
 
-Expected: 6 passed, 0 failed.
+Expected: 7 passed, 0 failed (2 `tradeHandoffCode` + 4 `callAsAccount` + 1 `refreshPass` — the original "6 passed" here was a miscount of Step 2's own test file).
 
 - [ ] **Step 6: Commit**
 
