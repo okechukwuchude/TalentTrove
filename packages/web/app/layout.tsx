@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { QueryProvider } from './query-provider.tsx';
 
 export const metadata = {
   title: 'TalentTrove',
@@ -7,7 +8,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }
