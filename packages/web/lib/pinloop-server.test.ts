@@ -85,3 +85,12 @@ describe('refreshPass', () => {
     await expect(refreshPass('r1', doFetch as unknown as typeof fetch)).rejects.toThrow(PinloopServerError);
   });
 });
+
+describe('rawCall error fallback', () => {
+  it('falls back to the HTTP status when the error body is empty, not to a blank message', async () => {
+    const doFetch = vi.fn().mockResolvedValue(new Response('', { status: 502 }));
+    await expect(
+      callAsAccount({ accessToken: 'a1' }, '/profile', {}, doFetch as unknown as typeof fetch),
+    ).rejects.toThrow('HTTP 502');
+  });
+});

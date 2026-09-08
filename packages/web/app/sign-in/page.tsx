@@ -1,9 +1,10 @@
 'use client';
 
-import React, { type FormEvent, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { SIGN_IN_PAGE_PATH, SIGN_IN_SITE_URL } from '@pinloop/shared';
 
-const SIGN_IN_URL = 'https://pinloop.ai/login';
+const SIGN_IN_URL = `${SIGN_IN_SITE_URL}${SIGN_IN_PAGE_PATH}`;
 
 export default function SignInPage() {
   const router = useRouter();
@@ -16,20 +17,25 @@ export default function SignInPage() {
     setSubmitting(true);
     setError(null);
 
-    const response = await fetch('/api/auth/handoff', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-    const data = (await response.json()) as { error?: string };
-    setSubmitting(false);
+    try {
+      const response = await fetch('/api/auth/handoff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
 
-    if (!response.ok) {
-      setError(data.error ?? 'could not sign in');
-      return;
+      if (!response.ok) {
+        setError(data.error ?? 'could not sign in');
+        return;
+      }
+      router.push('/');
+      router.refresh();
+    } catch {
+      setError('could not reach the server — check your connection and try again');
+    } finally {
+      setSubmitting(false);
     }
-    router.push('/');
-    router.refresh();
   }
 
   return (

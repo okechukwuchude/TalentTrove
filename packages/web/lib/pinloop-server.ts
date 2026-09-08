@@ -1,3 +1,5 @@
+import { HANDOFF_TRADE_PATH } from '@pinloop/shared';
+
 const SERVER_URL = process.env.PINLOOP_SERVER_URL ?? 'https://api.pinloop.ai';
 
 export class PinloopServerError extends Error {
@@ -44,7 +46,12 @@ async function rawCall(
 
   if (response.status >= 400) {
     const asRecord = json as { error?: string; message?: string } | undefined;
-    const message = asRecord?.error ?? asRecord?.message ?? text ?? `HTTP ${response.status}`;
+    // An empty body must not produce an empty message (`''` is not nullish,
+    // so `??` alone would never reach the fallback), and a non-JSON body
+    // (an HTML error page from a proxy, say) must not become the message
+    // verbatim — cap it.
+    const fallback = text.trim() === '' ? `HTTP ${response.status}` : text.slice(0, 200);
+    const message = asRecord?.error ?? asRecord?.message ?? fallback;
     throw new PinloopServerError(message, response.status);
   }
 
@@ -55,7 +62,7 @@ export async function tradeHandoffCode(
   code: string,
   doFetch: typeof fetch = fetch,
 ): Promise<Pass & { email?: string }> {
-  const { json } = await rawCall('/auth/handoff/trade', { method: 'POST', body: { code } }, doFetch);
+  const { json } = await rawCall(HANDOFF_TRADE_PATH, { method: 'POST', body: { code } }, doFetch);
   const asRecord = json as { access_token?: string; refresh_token?: string; email?: string } | undefined;
   if (typeof asRecord?.access_token !== 'string' || asRecord.access_token === '') {
     throw new PinloopServerError('that code was taken but carried no pass', 400);

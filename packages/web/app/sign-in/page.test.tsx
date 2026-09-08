@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import SignInPage from './page.tsx';
@@ -50,5 +49,15 @@ describe('SignInPage', () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/'));
     expect(refresh).toHaveBeenCalled();
+  });
+
+  it('re-enables the form after a network failure, with an error shown', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+    render(<SignInPage />);
+    fireEvent.change(screen.getByLabelText(/code/i), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not reach the server/i);
+    expect(screen.getByRole('button', { name: /sign in/i })).toBeEnabled();
   });
 });

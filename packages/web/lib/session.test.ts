@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   SESSION_COOKIE_NAME,
   clearedSessionCookieHeader,
@@ -42,16 +42,45 @@ describe('sealSession / readSession', () => {
 });
 
 describe('sessionCookieHeader / clearedSessionCookieHeader', () => {
-  it('sets the cookie httpOnly, secure, and scoped to the whole site', () => {
+  it('sets the cookie httpOnly and scoped to the whole site', () => {
+    // Not asserting `Secure` here: whether it's set depends on NODE_ENV
+    // (see the dedicated test below) — under a plain `vitest run`,
+    // NODE_ENV is 'test', not 'production', so Secure is correctly absent.
+    // Chrome/Firefox treat http://localhost as trustworthy and store a
+    // Secure cookie there anyway, but Safari does not, so the app only
+    // sends Secure in production, letting local sign-in work in Safari too.
     const header = sessionCookieHeader('sealed-value');
     expect(header).toContain(`${SESSION_COOKIE_NAME}=sealed-value`);
     expect(header).toContain('HttpOnly');
-    expect(header).toContain('Secure');
     expect(header).toContain('SameSite=Lax');
     expect(header).toContain('Path=/');
   });
 
   it('clears the cookie with Max-Age=0', () => {
     expect(clearedSessionCookieHeader()).toContain('Max-Age=0');
+  });
+
+  it('only sets Secure when NODE_ENV is production', async () => {
+    // COOKIE_SECURITY_FLAG is computed once at module load time, so
+    // flipping process.env.NODE_ENV after the module is already imported
+    // (as the rest of this file does) would not change its value. Reset
+    // the module registry and re-import fresh under each NODE_ENV to
+    // observe the real behavior instead of just re-asserting the current
+    // environment's value.
+    const original = process.env.NODE_ENV;
+    try {
+      vi.resetModules();
+      process.env.NODE_ENV = 'production';
+      const prodModule = await import('./session.ts');
+      expect(prodModule.sessionCookieHeader('sealed-value')).toContain('Secure');
+
+      vi.resetModules();
+      process.env.NODE_ENV = 'development';
+      const devModule = await import('./session.ts');
+      expect(devModule.sessionCookieHeader('sealed-value')).not.toContain('Secure');
+    } finally {
+      vi.resetModules();
+      process.env.NODE_ENV = original;
+    }
   });
 });
