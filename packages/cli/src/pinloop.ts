@@ -70,24 +70,29 @@ import { basename, join } from 'node:path';
 import { isatty } from 'node:tty';
 import { Command, Option } from 'commander';
 
-import { coverageOf, type Coverage } from '../shared/coverage.ts';
-import { runFilter, type FilterRules } from '../shared/filter.ts';
-import { buildGuide, NON_COMMAND_PARTS } from '../shared/guide.ts';
-import { allowanceLines, SIGNED_OUT_SENTENCE } from '../shared/guide-text.ts';
-import { SKILL_TEXT, SKILL_VERSION } from '../shared/skill-file.ts';
-import { printWelcome } from '../shared/welcome.ts';
 import {
+  coverageOf,
+  type Coverage,
+  runFilter,
+  type FilterRules,
+  buildGuide,
+  NON_COMMAND_PARTS,
+  allowanceLines,
+  SIGNED_OUT_SENTENCE,
+  SKILL_TEXT,
+  SKILL_VERSION,
+  printWelcome,
   DEFAULT_FILE_NAME,
   FILE_CONTENT_TYPE,
   JUDGE_PROMPT_NAME,
   QUICK_JUDGE_PROMPT_NAME,
   beginsLikeAPdf,
   reservedKind,
-} from '../shared/registry.ts';
-import { PROGRESS_CONTENT_TYPE, type ProgressEvent } from '../shared/progress-events.ts';
-import { dropReason } from '../shared/verdicts.ts';
-import { compareVersions, isVersion } from '../shared/version.ts';
-import {
+  PROGRESS_CONTENT_TYPE,
+  type ProgressEvent,
+  dropReason,
+  compareVersions,
+  isVersion,
   ADDRESS_INDENT,
   HANDOFF_TRADE_PATH,
   NO_LOGIN_SAVED_LINE,
@@ -97,9 +102,10 @@ import {
   loggedInLine,
   signedOutLine,
   type DeliveredPass,
-} from '../shared/sign-in.ts';
+  BILLING_PATH,
+  billingLines,
+} from '@pinloop/shared';
 import { openInBrowser, waitForBrowserSignIn } from './browser-login.ts';
-import { BILLING_PATH, billingLines } from '../shared/billing.ts';
 import { fractionOf, postingNamed, withSeparators } from './format.ts';
 import { companyRow, postingRow, summaryLine, tabRow, verdictRow } from './rows.ts';
 import { openScreen, type Screen } from './screen.ts';

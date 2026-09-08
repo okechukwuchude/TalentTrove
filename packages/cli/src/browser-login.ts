@@ -47,7 +47,7 @@ import {
   SIGN_IN_SITE_URL_ENV_VAR,
   WAIT_FOR_SIGN_IN_MS,
   type DeliveredPass,
-} from '../shared/sign-in.ts';
+} from '@pinloop/shared';
 
 /** A terminal that is listening for a browser to hand it a pass. */
 export type WaitingForSignIn = {

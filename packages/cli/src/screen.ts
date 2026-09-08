@@ -106,8 +106,7 @@ import { createLogUpdate } from 'log-update';
 import { createColors } from 'picocolors';
 
 import { withSeparators } from './format.ts';
-import { MAX_IN_FLIGHT_REQUESTS } from '../shared/model-calls.ts';
-import type { ProgressEvent } from '../shared/progress-events.ts';
+import { MAX_IN_FLIGHT_REQUESTS, type ProgressEvent } from '@pinloop/shared';
 
 /**
  * The functions that wrap a piece of text in the codes that colour it.

@@ -11,7 +11,7 @@
  * Nothing in this file reads a file, opens a connection or calls anything. It
  * takes numbers and text and gives back text.
  */
-import type { Coverage } from '../shared/coverage.ts';
+import type { Coverage } from '@pinloop/shared';
 
 /** One whole number with thousands separators, for a person to read. */
 export function withSeparators(count: number): string {
