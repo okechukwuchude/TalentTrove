@@ -1,0 +1,95 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DELETE, GET, POST } from './route.ts';
+import { sealSession, sessionCookieHeader } from '../../../../lib/session.ts';
+
+beforeEach(() => {
+  process.env.SESSION_SECRET = 'a'.repeat(32);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+}
+
+async function signedInHeaders(): Promise<Record<string, string>> {
+  const sealed = await sealSession({ accessToken: 'a1' });
+  return { cookie: sessionCookieHeader(sealed).split(';')[0]! };
+}
+
+const params = (name: string) => ({ params: Promise.resolve({ name }) });
+
+describe('GET /api/profile/[name]', () => {
+  it('asks the server for the document including its text', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ text: 'hello', stored: true }));
+    vi.stubGlobal('fetch', doFetch);
+    const request = new Request('http://localhost/api/profile/background', { headers: await signedInHeaders() });
+    const response = await GET(request, params('background'));
+    expect(await response.json()).toEqual({ text: 'hello', stored: true });
+    expect(doFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/profile/background?include=text'),
+      expect.anything(),
+    );
+  });
+});
+
+describe('POST /api/profile/[name]', () => {
+  it('sends a JSON body for a text document', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ bytes: 5 }));
+    vi.stubGlobal('fetch', doFetch);
+    const request = new Request('http://localhost/api/profile/background', {
+      method: 'POST',
+      headers: { ...(await signedInHeaders()), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'hello' }),
+    });
+    const response = await POST(request, params('background'));
+    expect(response.status).toBe(200);
+    const [, init] = doFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
+    expect(init.headers['Content-Type']).toBe('application/json');
+    expect(init.body).toBe(JSON.stringify({ text: 'hello' }));
+  });
+
+  it('forwards raw bytes for a PDF upload, carrying the filename in the query string', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ pages: 1, characters: 100, bytes: 9 }));
+    vi.stubGlobal('fetch', doFetch);
+    const bytes = new Uint8Array([1, 2, 3]);
+    const request = new Request('http://localhost/api/profile/resume?filename=my-resume.pdf', {
+      method: 'POST',
+      headers: { ...(await signedInHeaders()), 'Content-Type': 'application/pdf' },
+      body: bytes,
+    });
+    const response = await POST(request, params('resume'));
+    expect(response.status).toBe(200);
+    const [calledPath, init] = doFetch.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ];
+    expect(calledPath).toContain('/profile/resume?filename=my-resume.pdf');
+    expect(init.headers['Content-Type']).toBe('application/pdf');
+  });
+});
+
+describe('DELETE /api/profile/[name]', () => {
+  it('deletes the document', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({})));
+    const request = new Request('http://localhost/api/profile/judge-prompt', {
+      method: 'DELETE',
+      headers: await signedInHeaders(),
+    });
+    const response = await DELETE(request, params('judge-prompt'));
+    expect(await response.json()).toEqual({ deleted: true });
+  });
+
+  it('treats deleting a document that was never stored as already done', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'not found' }, 404)));
+    const request = new Request('http://localhost/api/profile/judge-prompt', {
+      method: 'DELETE',
+      headers: await signedInHeaders(),
+    });
+    const response = await DELETE(request, params('judge-prompt'));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ deleted: true });
+  });
+});
