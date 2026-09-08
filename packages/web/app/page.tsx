@@ -24,6 +24,11 @@ export default async function HomePage() {
           <Link href="/sign-in">Sign in</Link> to get started.
         </p>
       )}
+      {signedIn && (
+        <p>
+          <Link href="/profile">Manage your profile</Link>
+        </p>
+      )}
     </main>
   );
 }
