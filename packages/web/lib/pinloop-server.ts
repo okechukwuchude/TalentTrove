@@ -1,0 +1,101 @@
+const SERVER_URL = process.env.PINLOOP_SERVER_URL ?? 'https://api.pinloop.ai';
+
+export class PinloopServerError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export type Pass = {
+  accessToken: string;
+  refreshToken?: string;
+};
+
+type CallOptions = {
+  method?: string;
+  body?: unknown;
+  token?: string;
+};
+
+async function rawCall(
+  path: string,
+  options: CallOptions,
+  doFetch: typeof fetch,
+): Promise<{ json: unknown; status: number }> {
+  const headers: Record<string, string> = { 'pinloop-web-version': '0.0.0' };
+  if (options.token) headers['Authorization'] = `Bearer ${options.token}`;
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+
+  const response = await doFetch(`${SERVER_URL}${path}`, {
+    method: options.method ?? 'GET',
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+
+  const text = await response.text();
+  let json: unknown;
+  try {
+    json = text === '' ? undefined : JSON.parse(text);
+  } catch {
+    json = undefined;
+  }
+
+  if (response.status >= 400) {
+    const asRecord = json as { error?: string; message?: string } | undefined;
+    const message = asRecord?.error ?? asRecord?.message ?? text ?? `HTTP ${response.status}`;
+    throw new PinloopServerError(message, response.status);
+  }
+
+  return { json, status: response.status };
+}
+
+export async function tradeHandoffCode(
+  code: string,
+  doFetch: typeof fetch = fetch,
+): Promise<Pass & { email?: string }> {
+  const { json } = await rawCall('/auth/handoff/trade', { method: 'POST', body: { code } }, doFetch);
+  const asRecord = json as { access_token?: string; refresh_token?: string; email?: string } | undefined;
+  if (typeof asRecord?.access_token !== 'string' || asRecord.access_token === '') {
+    throw new PinloopServerError('that code was taken but carried no pass', 400);
+  }
+  return {
+    accessToken: asRecord.access_token,
+    refreshToken: asRecord.refresh_token,
+    email: asRecord.email,
+  };
+}
+
+export async function refreshPass(refreshTokenValue: string, doFetch: typeof fetch = fetch): Promise<Pass> {
+  const { json } = await rawCall(
+    '/auth/refresh',
+    { method: 'POST', body: { refresh_token: refreshTokenValue } },
+    doFetch,
+  );
+  const asRecord = json as { access_token?: string; refresh_token?: string } | undefined;
+  if (typeof asRecord?.access_token !== 'string' || asRecord.access_token === '') {
+    throw new PinloopServerError('the renewal did not return a pass', 401);
+  }
+  return {
+    accessToken: asRecord.access_token,
+    refreshToken: asRecord.refresh_token ?? refreshTokenValue,
+  };
+}
+
+export async function callAsAccount(
+  pass: Pass,
+  path: string,
+  options: { method?: string; body?: unknown } = {},
+  doFetch: typeof fetch = fetch,
+): Promise<{ json: unknown; status: number; renewedPass?: Pass }> {
+  try {
+    return await rawCall(path, { ...options, token: pass.accessToken }, doFetch);
+  } catch (error) {
+    const wasExpired = error instanceof PinloopServerError && error.status === 401;
+    if (!wasExpired || !pass.refreshToken) throw error;
+    const renewedPass = await refreshPass(pass.refreshToken, doFetch);
+    const result = await rawCall(path, { ...options, token: renewedPass.accessToken }, doFetch);
+    return { ...result, renewedPass };
+  }
+}
