@@ -281,7 +281,7 @@ git commit -m "Add packages/shared as an npm workspace, with its first unit test
 - Modify: `packages/cli/src/screen.ts` (same)
 - Modify: `packages/cli/src/format.ts` (same)
 - Modify: `packages/cli/src/browser-login.ts` (same)
-- Delete: old root `package.json` and now-empty `src/` directory
+- Delete: now-empty `src/` directory (its `cli/` and `shared/` subdirectories were both moved out, by this task's Step 1 and Task 2's Step 1)
 
 **Interfaces:**
 - Consumes: `@pinloop/shared`'s exports (specifically: `coverageOf`, `Coverage`, `runFilter`, `FilterRules`, `buildGuide`, `NON_COMMAND_PARTS`, `allowanceLines`, `SIGNED_OUT_SENTENCE`, `SKILL_TEXT`, `SKILL_VERSION`, `printWelcome`, `DEFAULT_FILE_NAME`, `FILE_CONTENT_TYPE`, `JUDGE_PROMPT_NAME`, `QUICK_JUDGE_PROMPT_NAME`, `beginsLikeAPdf`, `reservedKind`, `PROGRESS_CONTENT_TYPE`, `ProgressEvent`, `dropReason`, `compareVersions`, `isVersion`, `ADDRESS_INDENT`, `HANDOFF_TRADE_PATH`, `NO_LOGIN_SAVED_LINE`, `OPEN_THIS_ADDRESS_LINE`, `PASSWORD_FLAGS_REFUSAL`, `PASTE_THE_CODE_LINE`, `loggedInLine`, `signedOutLine`, `DeliveredPass`, `BILLING_PATH`, `billingLines`, `MAX_IN_FLIGHT_REQUESTS`, `GAVE_UP_LINE`, `LOOPBACK_CALLBACK_PATH`, `PORT_PARAMETER`, `SECRET_PARAMETER`, `SIGN_IN_PAGE_PATH`, `SIGN_IN_SITE_URL`, `SIGN_IN_SITE_URL_ENV_VAR`, `WAIT_FOR_SIGN_IN_MS`).
