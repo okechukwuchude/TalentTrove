@@ -1,4 +1,4 @@
-import { HANDOFF_TRADE_PATH } from '@pinloop/shared';
+import { HANDOFF_TRADE_PATH, SEND_CODE_PATH, VERIFY_CODE_PATH } from '@pinloop/shared';
 
 const SERVER_URL = process.env.PINLOOP_SERVER_URL ?? 'https://api.pinloop.ai';
 
@@ -71,6 +71,34 @@ export async function tradeHandoffCode(
     accessToken: asRecord.access_token,
     refreshToken: asRecord.refresh_token,
     email: asRecord.email,
+  };
+}
+
+// requestEmailCode/verifyEmailCode call the server's own email-code endpoints
+// directly, rather than relying on pinloop.ai's hosted sign-in page: that
+// page's short-code hand-off (HANDOFF_PATH/HANDOFF_TRADE_PATH) turned out,
+// in practice, to only work for the CLI's loopback-listener scenario — a
+// plain browser tab opened with no listener never gets shown a code at all.
+// These two endpoints are the same ones that page's own "email me a code"
+// option calls, so this sidesteps that page entirely.
+export async function requestEmailCode(email: string, doFetch: typeof fetch = fetch): Promise<void> {
+  await rawCall(SEND_CODE_PATH, { method: 'POST', body: { email } }, doFetch);
+}
+
+export async function verifyEmailCode(
+  email: string,
+  code: string,
+  doFetch: typeof fetch = fetch,
+): Promise<Pass & { email?: string }> {
+  const { json } = await rawCall(VERIFY_CODE_PATH, { method: 'POST', body: { email, code } }, doFetch);
+  const asRecord = json as { access_token?: string; refresh_token?: string; email?: string } | undefined;
+  if (typeof asRecord?.access_token !== 'string' || asRecord.access_token === '') {
+    throw new PinloopServerError('that code was accepted but carried no pass', 400);
+  }
+  return {
+    accessToken: asRecord.access_token,
+    refreshToken: asRecord.refresh_token,
+    email: asRecord.email ?? email,
   };
 }
 

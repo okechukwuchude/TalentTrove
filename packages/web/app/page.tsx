@@ -14,7 +14,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <h1>Pinloop</h1>
+      <h1>TalentTrove</h1>
       {signedIn ? (
         <p>
           Signed in{session.email ? ` as ${session.email}` : ''}. <SignOutButton />

@@ -1,6 +1,13 @@
 // packages/web/lib/pinloop-server.test.ts
 import { describe, expect, it, vi } from 'vitest';
-import { PinloopServerError, callAsAccount, refreshPass, tradeHandoffCode } from './pinloop-server.ts';
+import {
+  PinloopServerError,
+  callAsAccount,
+  refreshPass,
+  requestEmailCode,
+  tradeHandoffCode,
+  verifyEmailCode,
+} from './pinloop-server.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -92,5 +99,57 @@ describe('rawCall error fallback', () => {
     await expect(
       callAsAccount({ accessToken: 'a1' }, '/profile', {}, doFetch as unknown as typeof fetch),
     ).rejects.toThrow('HTTP 502');
+  });
+});
+
+describe('requestEmailCode', () => {
+  it('asks the server to email a code to the given address', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({}));
+    await requestEmailCode('a@example.com', doFetch as unknown as typeof fetch);
+    expect(doFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/send-code'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@example.com' }),
+      }),
+    );
+  });
+
+  it('surfaces the server refusal (e.g. an invalid address, or too many requests)', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ error: 'that does not look like an email address' }, 400));
+    await expect(requestEmailCode('not-an-email', doFetch as unknown as typeof fetch)).rejects.toThrow(
+      PinloopServerError,
+    );
+  });
+});
+
+describe('verifyEmailCode', () => {
+  it('returns the pass the server hands back for a matching code', async () => {
+    const doFetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ access_token: 'a1', refresh_token: 'r1', email: 'a@example.com' }));
+    const pass = await verifyEmailCode('a@example.com', '123456', doFetch as unknown as typeof fetch);
+    expect(pass).toEqual({ accessToken: 'a1', refreshToken: 'r1', email: 'a@example.com' });
+    expect(doFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/verify-code'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@example.com', code: '123456' }),
+      }),
+    );
+  });
+
+  it('throws when the server accepts the call but sends back no pass', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({}));
+    await expect(
+      verifyEmailCode('a@example.com', '123456', doFetch as unknown as typeof fetch),
+    ).rejects.toThrow(PinloopServerError);
+  });
+
+  it('surfaces the server refusal for a wrong or expired code', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ error: 'that code is wrong or has expired' }, 400));
+    await expect(
+      verifyEmailCode('a@example.com', '000000', doFetch as unknown as typeof fetch),
+    ).rejects.toThrow(PinloopServerError);
   });
 });
