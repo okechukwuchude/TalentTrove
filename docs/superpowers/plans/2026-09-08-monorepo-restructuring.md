@@ -125,7 +125,7 @@ Expected: succeeds with no errors, and reports 0 packages found under `packages/
 npx vitest run
 ```
 
-Expected: exits 0, reporting no test files found (there are none yet — this step only proves the Vitest binary and config are wired up correctly before any package depends on it).
+Expected: exits 1, printing "No test files found, exiting with code 1" — this is Vitest's actual default behavior with zero matching test files (it treats "found nothing" as a failure on purpose, so a misconfigured include glob doesn't silently report success later). Exit 1 here still proves the Vitest binary and config are wired up correctly — the include pattern is read and evaluated without error — and this state is transient: Task 2 adds a real test file, and `vitest run` starts exiting 0 from then on.
 
 - [ ] **Step 7: Commit**
 
