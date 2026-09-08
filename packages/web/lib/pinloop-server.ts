@@ -18,6 +18,8 @@ export type Pass = {
 type CallOptions = {
   method?: string;
   body?: unknown;
+  bytes?: Uint8Array;
+  contentType?: string;
   token?: string;
 };
 
@@ -28,12 +30,18 @@ async function rawCall(
 ): Promise<{ json: unknown; status: number }> {
   const headers: Record<string, string> = { 'pinloop-web-version': '0.0.0' };
   if (options.token) headers['Authorization'] = `Bearer ${options.token}`;
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+  if (options.bytes !== undefined) headers['Content-Type'] = options.contentType ?? 'application/octet-stream';
+  else if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
   const response = await doFetch(`${SERVER_URL}${path}`, {
     method: options.method ?? 'GET',
     headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body:
+      options.bytes !== undefined
+        ? options.bytes
+        : options.body === undefined
+          ? undefined
+          : JSON.stringify(options.body),
   });
 
   const text = await response.text();
@@ -121,7 +129,7 @@ export async function refreshPass(refreshTokenValue: string, doFetch: typeof fet
 export async function callAsAccount(
   pass: Pass,
   path: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown; bytes?: Uint8Array; contentType?: string } = {},
   doFetch: typeof fetch = fetch,
 ): Promise<{ json: unknown; status: number; renewedPass?: Pass }> {
   try {

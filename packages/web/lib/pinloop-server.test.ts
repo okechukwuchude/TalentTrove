@@ -153,3 +153,19 @@ describe('verifyEmailCode', () => {
     ).rejects.toThrow(PinloopServerError);
   });
 });
+
+describe('callAsAccount with raw bytes', () => {
+  it('sends the bytes as the body under the given content type, not as JSON', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ bytes: 3 }));
+    const bytes = new Uint8Array([1, 2, 3]);
+    await callAsAccount(
+      { accessToken: 'a1' },
+      '/profile/resume?filename=resume.pdf',
+      { method: 'POST', bytes, contentType: 'application/pdf' },
+      doFetch as unknown as typeof fetch,
+    );
+    const [, init] = doFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
+    expect(init.headers['Content-Type']).toBe('application/pdf');
+    expect(init.body).toBe(bytes);
+  });
+});
