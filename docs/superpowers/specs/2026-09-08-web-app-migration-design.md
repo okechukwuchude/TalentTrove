@@ -52,12 +52,39 @@ Almost all new work happens in `packages/web`.
 
 ## Auth & session model
 
-- **Sign-in**: `/sign-in` embeds the existing hosted sign-in flow (Google,
-  GitHub, or an emailed 6-digit code) directly. No loopback server, no
-  short-code hand-off — those exist in the CLI only because a terminal isn't a
-  browser; a web app already is one.
-- **Session storage**: on successful sign-in, a Next.js route handler
-  (`/api/auth/callback`) receives the `access_token`/`refresh_token` pair and
+**Corrected from the version of this section discussed during brainstorming.**
+The original plan assumed the hosted sign-in page could hand the pass back
+directly to whatever asked for it. It can't: `src/shared/sign-in.ts` shows the
+login service only ever redirects to one fixed, allowlisted address
+(`SIGN_IN_SITE_URL` + `CALLBACK_PAGE_PATH`, i.e. `https://pinloop.ai/auth/callback`),
+and that page's script only knows how to do one of two things — POST the pass
+to a loopback listener on `127.0.0.1` (meaningful only when the thing waiting
+for it runs on the *same machine*, which is true for the CLI and not true for
+a hosted web app), or display a short code for manual copy-paste
+(`HANDOFF_PATH` / `HANDOFF_TRADE_PATH`). Neither was built for "a browser tab
+talking to a server it isn't running locally."
+
+- **Sign-in (v1, no backend changes required)**: the web app's "Sign in"
+  button opens `https://pinloop.ai/login` in a new tab. The person signs in
+  there with Google, GitHub, or an emailed 6-digit code. Finding no loopback
+  listener, `pinloop.ai/auth/callback` displays a short code — the same
+  fallback UX the CLI already shows when a browser can't reach the terminal
+  (`PASTE_THE_CODE_LINE`). The person switches back to the web app's tab and
+  pastes that code into a "paste your code" field. The web app's own BFF route
+  handler trades it via `POST /auth/handoff/trade` — the exact mechanism
+  `tradeTheShortCode` in `pinloop.ts` already implements today — and sets the
+  session cookie from the returned pass. One extra copy-paste step versus the
+  originally-discussed flow, but it ships without touching anything outside
+  this repo.
+- **Documented fast-follow, not part of this project**: a seamless flow where
+  `pinloop.ai/auth/callback` detects it was opened via `window.open()` (i.e.
+  `window.opener` is set) and delivers the pass with
+  `window.opener.postMessage(pass, '<web-app-origin>')` instead of showing a
+  code. That requires editing the callback page itself, which lives outside
+  this repo and needs coordination with whoever owns pinloop.ai. Worth doing
+  later; not a blocker for this project.
+- **Session storage**: on a successful code trade, the BFF route handler
+  (`/api/auth/callback`) that received the `access_token`/`refresh_token` pair
   sets **one httpOnly, Secure, SameSite=Lax session cookie**. No token is ever
   readable by page JavaScript. This is the web equivalent of the CLI's
   `credentials.json` written with `0600` permissions — the goal in both cases
@@ -117,7 +144,7 @@ this only affects one function's internals.
 
 | Page | Replaces | Backing endpoint(s) |
 |---|---|---|
-| `/sign-in` | `pinloop login` | hosted sign-in flow, `/auth/callback`, `/auth/refresh` |
+| `/sign-in` | `pinloop login` | `pinloop.ai/login` (new tab), `POST /auth/handoff/trade`, `POST /auth/refresh` |
 | `/profile` | `pinloop profile *` | `GET/POST/DELETE /profile/{name}` |
 | `/search` | `pinloop search`, `pinloop list`, `pinloop companies` | `POST /search`, `GET /companies` |
 | `/tabs` | `pinloop tab *` | tab CRUD endpoints |
