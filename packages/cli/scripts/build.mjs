@@ -1,8 +1,11 @@
 import { build } from 'esbuild';
+import { join } from 'node:path';
+
+const packageRoot = join(import.meta.dirname, '..');
 
 await build({
-  entryPoints: ['src/pinloop.ts'],
-  outfile: 'dist/pinloop.js',
+  entryPoints: [join(packageRoot, 'src/pinloop.ts')],
+  outfile: join(packageRoot, 'dist/pinloop.js'),
   bundle: true,
   platform: 'node',
   format: 'esm',

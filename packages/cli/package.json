@@ -7,7 +7,11 @@
     "pinloop": "./dist/pinloop.js"
   },
   "homepage": "https://pinloop.ai",
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "prebuild": "npm --prefix ../.. run build -w @pinloop/shared",
     "build": "tsc --noEmit && node scripts/build.mjs",
     "prepack": "npm run build"
   },
