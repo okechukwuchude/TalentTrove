@@ -119,7 +119,7 @@ export async function callAsAccount(
 npx vitest run packages/web/lib/pinloop-server.test.ts
 ```
 
-Expected: 7 passed, 0 failed (the 6 from Plan 2 plus this one).
+Expected: 14 passed, 0 failed. (This file has grown since this plan was written — Plan 2's own final review added a test, and a post-merge sign-in rework added five more for direct email-code verification — so it's 13 existing tests plus this one, not the "6 from Plan 2" originally assumed here. Whatever the actual pre-existing count is, confirm all of them still pass alongside the new one — that's what actually matters.)
 
 - [ ] **Step 5: Write the failing tests for `require-session.ts`**
 
@@ -571,14 +571,17 @@ export function QueryProvider({ children }: { children: ReactNode }) {
 }
 ```
 
-Modify `packages/web/app/layout.tsx` to wrap `{children}`:
+Modify `packages/web/app/layout.tsx` to wrap `{children}`. **Note:** this plan was written before a
+post-merge rename of the app to "TalentTrove" — the real current file has `title: 'TalentTrove'`, not
+`title: 'Pinloop'` as shown below. Keep whatever the file's current title value actually is; only add
+the `<QueryProvider>` wrap, don't revert the title:
 
 ```tsx
 import type { ReactNode } from 'react';
 import { QueryProvider } from './query-provider.tsx';
 
 export const metadata = {
-  title: 'Pinloop',
+  title: 'TalentTrove',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
