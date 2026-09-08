@@ -19,8 +19,14 @@ function sessionSecret(): string {
 function parseCookie(header: string | null, name: string): string | undefined {
   if (!header) return undefined;
   for (const part of header.split(';')) {
-    const [key, ...rest] = part.trim().split('=');
-    if (key === name) return rest.join('=');
+    const trimmed = part.trim();
+    const eqIndex = trimmed.indexOf('=');
+    if (eqIndex > -1) {
+      const key = trimmed.substring(0, eqIndex);
+      if (key === name) {
+        return trimmed.substring(eqIndex + 1);
+      }
+    }
   }
   return undefined;
 }
