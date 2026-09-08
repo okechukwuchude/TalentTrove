@@ -495,14 +495,13 @@ import {
 
 `packages/cli/src/rows.ts`, `packages/cli/src/version.ts`, and `packages/cli/src/paths.ts` import nothing from `shared` at all (confirmed by reading them) — they need no changes here.
 
-- [ ] **Step 8: Remove the now-empty old root `package.json` and `src/` directory**
+- [ ] **Step 8: Remove the now-empty `src/` directory**
+
+Task 1, Step 2 already replaced the root `package.json` with the workspace-root manifest — there is no separate "old" root `package.json` left to delete at this point; only the now-empty `src/` directory (both its `cli/` and `shared/` subdirectories were moved out, by Task 2 Step 1 and this task's Step 1) needs cleaning up:
 
 ```bash
-git rm package.json
 rmdir src 2>/dev/null || true
 ```
-
-(The old root `package.json`'s content is fully captured in Step 2's `packages/cli/package.json` above — nothing is lost.)
 
 - [ ] **Step 9: Install and type-check**
 
@@ -591,6 +590,7 @@ git commit -m "Bundle packages/cli with esbuild so it publishes with no workspac
 ### Task 5: Scaffold `packages/web`
 
 **Files:**
+- Modify: `.gitignore` (exclude Next.js build output before it's ever generated)
 - Create: `packages/web/package.json`
 - Create: `packages/web/tsconfig.json`
 - Create: `packages/web/next.config.mjs`
@@ -601,7 +601,17 @@ git commit -m "Bundle packages/cli with esbuild so it publishes with no workspac
 - Consumes: `@pinloop/shared`'s `coverageOf` (just to prove the import resolves from a Next.js build, not because the placeholder page needs it for real).
 - Produces: a `packages/web` app buildable with `next build`. No real feature pages — those are Plans 2 and 3.
 
-- [ ] **Step 1: Write `packages/web/package.json`**
+- [ ] **Step 1: Update `.gitignore` before generating any build output**
+
+The repo's `.gitignore` today only has `node_modules/` and `dist/` (the second already matches `packages/*/dist/` at any depth — no change needed there). It has no `.next/` entry at all, and Step 7's `next build` is about to create `packages/web/.next/`. Update it now, before that directory exists, so Step 8's commit can never accidentally pick it up:
+
+```
+node_modules/
+dist/
+packages/web/.next/
+```
+
+- [ ] **Step 2: Write `packages/web/package.json`**
 
 ```json
 {
@@ -628,7 +638,7 @@ git commit -m "Bundle packages/cli with esbuild so it publishes with no workspac
 }
 ```
 
-- [ ] **Step 2: Write `packages/web/tsconfig.json`**
+- [ ] **Step 3: Write `packages/web/tsconfig.json`**
 
 Next.js expects a specific tsconfig shape (it rewrites parts of this file the first time `next dev`/`next build` runs, adding a `next-env.d.ts` reference) — this is the standard starting shape for a Next.js 15 App Router project, keeping this monorepo's `strict`/`noUncheckedIndexedAccess` conventions:
 
@@ -655,7 +665,7 @@ Next.js expects a specific tsconfig shape (it rewrites parts of this file the fi
 }
 ```
 
-- [ ] **Step 3: Write `packages/web/next.config.mjs`**
+- [ ] **Step 4: Write `packages/web/next.config.mjs`**
 
 ```javascript
 /** @type {import('next').NextConfig} */
@@ -664,7 +674,7 @@ const nextConfig = {};
 export default nextConfig;
 ```
 
-- [ ] **Step 4: Write `packages/web/app/layout.tsx`**
+- [ ] **Step 5: Write `packages/web/app/layout.tsx`**
 
 ```tsx
 import type { ReactNode } from 'react';
@@ -682,7 +692,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 ```
 
-- [ ] **Step 5: Write `packages/web/app/page.tsx`**
+- [ ] **Step 6: Write `packages/web/app/page.tsx`**
 
 ```tsx
 import { coverageOf } from '@pinloop/shared';
@@ -702,19 +712,19 @@ export default function HomePage() {
 
 This page exists only to prove `@pinloop/shared` resolves correctly from a Next.js build — it's replaced by the real dashboard in a later plan.
 
-- [ ] **Step 6: Install and build**
+- [ ] **Step 7: Install and build**
 
 ```bash
 npm install
 npm run build -w packages/web
 ```
 
-Expected: exits 0. Next.js's production build type-checks the whole app and prerenders `/`, so this fails loudly if the `@pinloop/shared` import, the tsconfig, or the JSX is wrong.
+Expected: exits 0. Next.js's production build type-checks the whole app and prerenders `/`, so this fails loudly if the `@pinloop/shared` import, the tsconfig, or the JSX is wrong. `packages/web/.next/` is created by this step — Step 1's `.gitignore` update already excludes it, so the next step's `git add` won't pick it up.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add packages/web
+git add .gitignore packages/web
 git commit -m "Scaffold packages/web as a minimal Next.js app"
 ```
 
@@ -755,21 +765,6 @@ npm test
 
 Expected: the `coverageOf` tests from Task 2 pass (3 passed, 0 failed).
 
-- [ ] **Step 4: Update `.gitignore` for the new per-package build outputs**
-
-Read the current `.gitignore` (today it's just `node_modules/` and `dist/`). Replace it with:
-
-```
-node_modules/
-packages/*/dist/
-packages/web/.next/
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add .gitignore
-git commit -m "Verify the monorepo builds end-to-end from a clean install"
-```
+This task makes no file changes of its own — Task 5, Step 1 already updated `.gitignore`, and Steps 1–3 above are pure verification of what Tasks 1–5 wrote — so there is nothing new to commit here.
 
 At this point: `packages/cli` publishes exactly as before (same command name, same behavior, no workspace dependency leaking into its published `dependencies`), `packages/shared` has its first real test coverage, and `packages/web` exists as a proven, buildable foundation for Plan 2 (auth) and Plan 3 (profile/CV upload) to build real pages on.
