@@ -2,12 +2,18 @@
 
 import { type ChangeEvent, useState } from 'react';
 import { FILE_CAP } from '@pinloop/shared';
-import { useUploadResume } from '../../lib/profile-queries.ts';
+import { useProfileDocuments, useUploadResume } from '../../lib/profile-queries.ts';
 import { Card, CardContent, CardHeader } from '../../components/ui/card.tsx';
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 export function ResumeCard() {
+  const documents = useProfileDocuments();
   const upload = useUploadResume();
   const [clientError, setClientError] = useState<string | null>(null);
+  const storedResume = documents.data?.find((document) => document.name === 'resume');
 
   function handleFile(event: ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
@@ -45,7 +51,7 @@ export function ResumeCard() {
             {upload.error.message}
           </p>
         )}
-        {upload.isSuccess && (
+        {upload.isSuccess ? (
           <p aria-live="polite" className="text-sm text-muted-foreground">
             Stored
             {typeof upload.data.pages === 'number'
@@ -57,6 +63,14 @@ export function ResumeCard() {
                 : ''}
             {upload.data.note ? ` ${upload.data.note}` : ''}
           </p>
+        ) : storedResume ? (
+          <p className="text-sm text-muted-foreground">
+            Currently stored: {storedResume.original_filename ?? 'resume.pdf'} —{' '}
+            {storedResume.bytes.toLocaleString('en-US')} bytes
+            {storedResume.updated_at ? `, updated ${formatDate(storedResume.updated_at)}` : ''}
+          </p>
+        ) : (
+          documents.isSuccess && <p className="text-sm text-muted-foreground">No resume uploaded yet.</p>
         )}
       </CardContent>
     </Card>
