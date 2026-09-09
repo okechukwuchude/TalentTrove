@@ -6,6 +6,12 @@ import { asPosting, type Posting } from './posting.ts';
 export type Tab = { name: string; description?: string; items: number };
 
 type TabsResponse = { rows: Record<string, unknown>[] };
+export type AddToTabResponse = {
+  rows: Record<string, unknown>[];
+  already_present: string[];
+  unknown: string[];
+  coverage?: unknown;
+};
 type TabDetailResponse = {
   rows: Record<string, unknown>[];
   cursor: string | null;
@@ -93,7 +99,7 @@ export function useAddToTab() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ name, ids }: { name: string; ids: string[] }) =>
-      fetchJson(`/api/tabs/${encodeURIComponent(name)}/add`, {
+      fetchJson<AddToTabResponse>(`/api/tabs/${encodeURIComponent(name)}/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),

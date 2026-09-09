@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   SESSION_COOKIE_NAME,
   clearedSessionCookieHeader,
@@ -9,6 +9,10 @@ import {
 
 beforeEach(() => {
   process.env.SESSION_SECRET = 'a'.repeat(32);
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('sealSession / readSession', () => {
@@ -67,20 +71,18 @@ describe('sessionCookieHeader / clearedSessionCookieHeader', () => {
     // the module registry and re-import fresh under each NODE_ENV to
     // observe the real behavior instead of just re-asserting the current
     // environment's value.
-    const original = process.env.NODE_ENV;
     try {
       vi.resetModules();
-      process.env.NODE_ENV = 'production';
+      vi.stubEnv('NODE_ENV', 'production');
       const prodModule = await import('./session.ts');
       expect(prodModule.sessionCookieHeader('sealed-value')).toContain('Secure');
 
       vi.resetModules();
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
       const devModule = await import('./session.ts');
       expect(devModule.sessionCookieHeader('sealed-value')).not.toContain('Secure');
     } finally {
       vi.resetModules();
-      process.env.NODE_ENV = original;
     }
   });
 });

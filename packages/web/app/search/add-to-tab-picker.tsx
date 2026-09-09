@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useAddToTab, useCreateTab, useTabs } from '../../lib/tab-queries.ts';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { useAddToTab, useCreateTab, useTabs, type AddToTabResponse } from '../../lib/tab-queries.ts';
 import { Button } from '../../components/ui/button.tsx';
 import { Input } from '../../components/ui/input.tsx';
 
@@ -9,16 +9,40 @@ export function AddToTabPicker({ postingId }: { postingId: string }) {
   const [open, setOpen] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const { data: tabs } = useTabs();
   const addToTab = useAddToTab();
   const createTab = useCreateTab();
+
+  useEffect(() => {
+    if (!open) return;
+    function handleMouseDown(event: MouseEvent): void {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [open]);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.key === 'Escape' && open) {
+      setOpen(false);
+    }
+  }
 
   function addTo(name: string): void {
     addToTab.mutate(
       { name, ids: [postingId] },
       {
-        onSuccess: () => {
-          setFeedback(`Added to '${name}'`);
+        onSuccess: (data: AddToTabResponse) => {
+          if (data.rows.length > 0) {
+            setFeedback(`Added to '${name}'`);
+          } else if (data.already_present.length > 0) {
+            setFeedback(`Already in '${name}'`);
+          } else {
+            setFeedback(`Added to '${name}'`);
+          }
           setOpen(false);
         },
       },
@@ -40,8 +64,14 @@ export function AddToTabPicker({ postingId }: { postingId: string }) {
   }
 
   return (
-    <div className="relative">
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen((value) => !value)}>
+    <div className="relative" ref={containerRef} onKeyDown={handleKeyDown}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
         Add to tab
       </Button>
       {open && (
@@ -73,16 +103,16 @@ export function AddToTabPicker({ postingId }: { postingId: string }) {
               Add
             </Button>
           </div>
+          {(addToTab.isError || createTab.isError) && (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {addToTab.error?.message ?? createTab.error?.message}
+            </p>
+          )}
         </div>
       )}
       {feedback && (
         <p aria-live="polite" className="mt-1 text-xs text-muted-foreground">
           {feedback}
-        </p>
-      )}
-      {(addToTab.isError || createTab.isError) && (
-        <p role="alert" className="mt-1 text-xs text-destructive">
-          {addToTab.error?.message ?? createTab.error?.message}
         </p>
       )}
     </div>
