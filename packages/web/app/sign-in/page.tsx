@@ -2,6 +2,9 @@
 
 import { type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '../../components/ui/button.tsx';
+import { Input } from '../../components/ui/input.tsx';
+import { Label } from '../../components/ui/label.tsx';
 
 type Step = { name: 'email' } | { name: 'code'; email: string };
 
@@ -67,24 +70,31 @@ export default function SignInPage() {
 
   if (step.name === 'code') {
     return (
-      <main>
-        <h1>Sign in</h1>
-        <p>We sent a code to {step.email}.</p>
-        <form onSubmit={handleVerifyCode} noValidate>
-          <label htmlFor="code">Code</label>
-          <input
-            id="code"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            disabled={submitting}
-          />
-          <button type="submit" disabled={submitting || code.trim() === ''}>
+      <main className="mx-auto flex max-w-sm flex-col gap-4">
+        <h1 className="text-2xl font-semibold">Sign in</h1>
+        <p className="text-sm text-muted-foreground">We sent a code to {step.email}.</p>
+        <form onSubmit={handleVerifyCode} noValidate className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="code">Code</Label>
+            <Input
+              id="code"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <Button type="submit" disabled={submitting || code.trim() === ''}>
             {submitting ? 'Verifying…' : 'Verify'}
-          </button>
-          {error && <p role="alert">{error}</p>}
+          </Button>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
         </form>
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => {
             setStep({ name: 'email' });
             setCode('');
@@ -92,28 +102,36 @@ export default function SignInPage() {
           }}
         >
           Use a different email
-        </button>
+        </Button>
       </main>
     );
   }
 
   return (
-    <main>
-      <h1>Sign in</h1>
-      <p>Enter your email and we&rsquo;ll send you a code to sign in with.</p>
-      <form onSubmit={handleSendCode} noValidate>
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          disabled={submitting}
-        />
-        <button type="submit" disabled={submitting || email.trim() === ''}>
+    <main className="mx-auto flex max-w-sm flex-col gap-4">
+      <h1 className="text-2xl font-semibold">Sign in</h1>
+      <p className="text-sm text-muted-foreground">
+        Enter your email and we&rsquo;ll send you a code to sign in with.
+      </p>
+      <form onSubmit={handleSendCode} noValidate className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={submitting}
+          />
+        </div>
+        <Button type="submit" disabled={submitting || email.trim() === ''}>
           {submitting ? 'Sending…' : 'Send code'}
-        </button>
-        {error && <p role="alert">{error}</p>}
+        </Button>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
       </form>
     </main>
   );

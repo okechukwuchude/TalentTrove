@@ -7,8 +7,8 @@ import { WholeProfileUsage } from './whole-profile-usage.tsx';
 
 export function ProfileEditor() {
   return (
-    <main>
-      <h1>Profile</h1>
+    <main className="flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold">Profile</h1>
       <WholeProfileUsage />
       <ResumeCard />
       <TextDocumentCard name="constraints" label="Constraints" perDocumentCap={PER_DOCUMENT_CAP} />

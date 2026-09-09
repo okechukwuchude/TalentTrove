@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Button } from '../components/ui/button.tsx';
 
 export function SignOutButton() {
   const router = useRouter();
@@ -11,5 +12,9 @@ export function SignOutButton() {
     router.refresh();
   }
 
-  return <button onClick={handleClick}>Sign out</button>;
+  return (
+    <Button type="button" variant="ghost" size="sm" onClick={handleClick}>
+      Sign out
+    </Button>
+  );
 }

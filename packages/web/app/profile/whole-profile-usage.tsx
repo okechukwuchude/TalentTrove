@@ -6,7 +6,11 @@ import { useProfileDocuments } from '../../lib/profile-queries.ts';
 export function WholeProfileUsage() {
   const { data, isError, error } = useProfileDocuments();
   if (isError) {
-    return <p role="alert">{error.message}</p>;
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {error.message}
+      </p>
+    );
   }
   const textBytes = (data ?? [])
     .filter((document) => document.kind === 'text')
@@ -14,9 +18,9 @@ export function WholeProfileUsage() {
   const overCap = textBytes > WHOLE_PROFILE_CAP;
 
   return (
-    <p aria-live="polite">
-      {textBytes.toLocaleString('en-US')} / {WHOLE_PROFILE_CAP.toLocaleString('en-US')} bytes of text
-      documents stored{overCap ? ' — over the whole-profile limit' : ''}
+    <p aria-live="polite" className="text-sm text-muted-foreground">
+      {textBytes.toLocaleString('en-US')} / {WHOLE_PROFILE_CAP.toLocaleString('en-US')} bytes of text documents
+      stored{overCap ? ' — over the whole-profile limit' : ''}
     </p>
   );
 }
