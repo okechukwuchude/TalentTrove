@@ -28,7 +28,22 @@ describe('useSearch', () => {
 
   it('fetches the first page and maps rows to Postings', async () => {
     const doFetch = vi.fn().mockResolvedValue(
-      jsonResponse({ rows: [{ id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://x/p1' }], cursor: 'c2' }),
+      jsonResponse({
+        rows: [
+          {
+            id: 'p1',
+            title: 'Staff Engineer',
+            company: 'Acme',
+            url: 'https://x/p1',
+            locations: ['Remote'],
+            workplace: 'remote',
+            employment: 'full-time',
+            posted_at: '2026-09-01T00:00:00Z',
+            strength: 0.87,
+          },
+        ],
+        cursor: 'c2',
+      }),
     );
     vi.stubGlobal('fetch', doFetch);
 
@@ -36,7 +51,17 @@ describe('useSearch', () => {
     await waitFor(() => expect(result.current.data).toBeDefined());
 
     expect(result.current.data?.pages[0]?.rows).toEqual([
-      { id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://x/p1', posted_at: null },
+      {
+        id: 'p1',
+        title: 'Staff Engineer',
+        company: 'Acme',
+        url: 'https://x/p1',
+        locations: ['Remote'],
+        workplace: 'remote',
+        employment: 'full-time',
+        posted_at: '2026-09-01T00:00:00Z',
+        strength: 0.87,
+      },
     ]);
     expect(result.current.hasNextPage).toBe(true);
     const [, init] = doFetch.mock.calls[0] as [string, RequestInit];
