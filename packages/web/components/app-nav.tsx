@@ -13,6 +13,9 @@ export function AppNav({ signedIn, email }: { signedIn: boolean; email?: string 
             <Link href="/search" className="hover:underline">
               Search
             </Link>
+            <Link href="/tabs" className="hover:underline">
+              Tabs
+            </Link>
             <Link href="/profile" className="hover:underline">
               Profile
             </Link>
