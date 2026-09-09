@@ -8,6 +8,7 @@ export type Posting = {
   posted_at?: string | null;
   url: string;
   strength?: number;
+  item_id?: string;
 };
 
 export function asPosting(row: Record<string, unknown>): Posting {
@@ -21,5 +22,6 @@ export function asPosting(row: Record<string, unknown>): Posting {
     posted_at: typeof row['posted_at'] === 'string' ? row['posted_at'] : null,
     url: String(row['url'] ?? ''),
     strength: typeof row['strength'] === 'number' ? row['strength'] : undefined,
+    item_id: typeof row['item_id'] === 'string' ? row['item_id'] : undefined,
   };
 }
