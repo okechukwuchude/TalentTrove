@@ -33,6 +33,17 @@ describe('GET /api/profile/[name]', () => {
       expect.anything(),
     );
   });
+
+  it('treats a document the server 404s (never stored, no built-in default) as an empty document', async () => {
+    const doFetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ error: 'no document named background is stored in this profile' }, 404));
+    vi.stubGlobal('fetch', doFetch);
+    const request = new Request('http://localhost/api/profile/background', { headers: await signedInHeaders() });
+    const response = await GET(request, params('background'));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ text: '', stored: false });
+  });
 });
 
 describe('POST /api/profile/[name]', () => {

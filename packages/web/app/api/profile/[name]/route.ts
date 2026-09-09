@@ -22,6 +22,14 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Re
     );
     return withRenewedCookie(auth.session, Response.json(firstRow(json)), renewedPass);
   } catch (error) {
+    // A name with no built-in default (background, constraints, preferences) 404s
+    // when this account has never stored one, rather than handing back an empty row
+    // the way judge-prompt/quick-judge-prompt do. Treat it the same as an unset
+    // default here — an empty, editable document — so a first-time visitor gets a
+    // blank box to type into instead of a raw "no document named ... is stored" alert.
+    if (error instanceof PinloopServerError && error.status === 404) {
+      return Response.json({ text: '', stored: false });
+    }
     const message = error instanceof PinloopServerError ? error.message : `could not load '${name}'`;
     const status = error instanceof PinloopServerError ? error.status : 500;
     return Response.json({ error: message }, { status });

@@ -45,7 +45,9 @@ export function ResumeCard() {
             ? ` — ${upload.data.pages} page${upload.data.pages === 1 ? '' : 's'}, ` +
               `${upload.data.pages_read ?? upload.data.pages} read, ` +
               `${(upload.data.characters ?? 0).toLocaleString('en-US')} characters of text stored`
-            : ''}
+            : typeof upload.data.bytes === 'number'
+              ? ` — ${upload.data.bytes.toLocaleString('en-US')} bytes`
+              : ''}
           {upload.data.note ? ` ${upload.data.note}` : ''}
         </p>
       )}

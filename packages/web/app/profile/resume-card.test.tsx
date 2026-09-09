@@ -62,4 +62,28 @@ describe('ResumeCard', () => {
       expect.objectContaining({ method: 'POST', headers: { 'Content-Type': 'application/pdf' } }),
     );
   });
+
+  it('shows the byte count instead of a bare "Stored" when the server response carries no page info', async () => {
+    // A real server response can be a plain document row — name/kind/bytes/updated_at —
+    // with no pages/characters/note at all, e.g. when text extraction hasn't run yet.
+    const doFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          name: 'resume',
+          kind: 'file',
+          bytes: 503462,
+          updated_at: '2026-09-09T07:17:37.211Z',
+          original_filename: 'Philip Chude CV.pdf',
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', doFetch);
+    renderWithClient(<ResumeCard />);
+
+    const file = new File(['%PDF-1.4 ...'], 'resume.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Resume'), { target: { files: [file] } });
+
+    expect(await screen.findByText(/stored — 503,462 bytes/i)).toBeInTheDocument();
+  });
 });
