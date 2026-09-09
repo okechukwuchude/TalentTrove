@@ -19,6 +19,7 @@
     "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "resend": "^6.26.0",
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {

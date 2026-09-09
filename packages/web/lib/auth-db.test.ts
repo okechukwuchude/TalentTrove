@@ -83,4 +83,19 @@ describe.skipIf(!testDatabaseUrl)('auth-db: users & sessions', () => {
     expect(await authDb.resolveSessionToken(tokenB)).toBeNull();
     expect(await authDb.resolveSessionToken(otherToken)).not.toBeNull();
   });
+
+  it('creates a password reset token and consumes it exactly once', async () => {
+    const user = await authDb.createUser('reset@example.com', 'hashed-password');
+    const token = await authDb.createPasswordResetToken(user.id);
+
+    const first = await authDb.consumePasswordResetToken(token);
+    expect(first).toEqual({ userId: user.id });
+
+    const second = await authDb.consumePasswordResetToken(token);
+    expect(second).toBeNull();
+  });
+
+  it('returns null for a reset token that was never issued', async () => {
+    expect(await authDb.consumePasswordResetToken('not-a-real-token')).toBeNull();
+  });
 });

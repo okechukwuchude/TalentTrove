@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { getDb } from './db.ts';
-import { sessions, users } from '../db/schema.ts';
+import { passwordResetTokens, sessions, users } from '../db/schema.ts';
 import { generateToken, hashToken } from './tokens.ts';
 
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -70,4 +70,28 @@ export async function deleteSession(rawToken: string): Promise<void> {
 
 export async function deleteAllSessionsForUser(userId: string): Promise<void> {
   await getDb().delete(sessions).where(eq(sessions.userId, userId));
+}
+
+const RESET_TOKEN_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+export async function createPasswordResetToken(userId: string): Promise<string> {
+  const token = generateToken();
+  await getDb().insert(passwordResetTokens).values({
+    tokenHash: hashToken(token),
+    userId,
+    expiresAt: new Date(Date.now() + RESET_TOKEN_MAX_AGE_MS),
+  });
+  return token;
+}
+
+export async function consumePasswordResetToken(rawToken: string): Promise<{ userId: string } | null> {
+  const tokenHash = hashToken(rawToken);
+  const [row] = await getDb()
+    .select({ userId: passwordResetTokens.userId, expiresAt: passwordResetTokens.expiresAt })
+    .from(passwordResetTokens)
+    .where(and(eq(passwordResetTokens.tokenHash, tokenHash), isNull(passwordResetTokens.consumedAt)));
+  if (!row || row.expiresAt.getTime() < Date.now()) return null;
+
+  await getDb().update(passwordResetTokens).set({ consumedAt: new Date() }).where(eq(passwordResetTokens.tokenHash, tokenHash));
+  return { userId: row.userId };
 }
