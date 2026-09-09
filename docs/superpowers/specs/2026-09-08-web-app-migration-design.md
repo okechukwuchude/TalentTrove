@@ -143,6 +143,10 @@ this only affects one function's internals.
   same approach as `readLines` in `pinloop.ts`, updating UI state per line as
   it arrives, and treating the final line as the answer — same contract, same
   ordering guarantee (no line is held back to find out it was the last one).
+  Only judge's *second* (confirmed) call is actually streamed — its dry-run
+  call is small buffered JSON like every other route. See "Search, Tabs &
+  Judge, in detail" below for the concrete split and the `streamAsAccount`
+  proxy primitive it needs.
 - **Client-side data fetching**: TanStack Query (React Query). Reads (profile
   list, search results, tab contents, routine/schedule/watch lists, billing
   status) are queries with normal caching/refetch-on-focus behavior. Mutations
@@ -196,6 +200,102 @@ this only affects one function's internals.
   default text (`DEFAULT_JUDGE_PROMPT` / `DEFAULT_QUICK_JUDGE_PROMPT` from
   `packages/shared`) is shown as placeholder/preview text rather than the
   CLI's stderr note.
+
+### Visual foundation, decided for the search/tabs/judge phase
+
+The "exact visual design system" question this spec originally left open
+(see "Out of scope" below) is settled starting with this phase: Tailwind CSS
+plus shadcn/ui, added as the first task of the phase and used for every page
+built afterward. The existing sign-in and profile pages — built with no
+styling at all — are retrofitted to the same primitives in the same task, so
+the app reads as one product rather than a styled half and a bare half. No
+custom design system beyond shadcn's defaults and whatever color/typography
+tokens make the CLI's existing wording (posting cards, coverage sentences,
+verdict text) read well on screen.
+
+### Search, Tabs & Judge, in detail
+
+**`/search`** is one page backed by one endpoint, `POST /search` — `list` and
+`companies` do not become separate pages:
+
+- Filter bar: free-text search words, plus `country`, `workplace`,
+  `employment`, `posted-after`, `unjudged`. A company filter is a
+  typeahead/combobox backed by a new `GET /api/companies` route (proxying
+  `GET /companies`): typing queries employer names, selecting one adds its id
+  to the `company` param. This is the only surface `/companies` needs — there
+  is no separate "browse companies" view.
+- No explicit "list mode." `pinloop list`'s behavior (date-ordered, no word
+  ranking) is just what `/search` already does when the words field is
+  empty, and `list`'s narrower option set (no `--company`/`--match`/
+  `--order`/`--top`/`--in`/`--semantic`) is simply not shown rather than
+  built as a second mode. One query hook (`useSearch`), one results-list
+  component.
+- Results render as a card per posting (title, company, location/workplace,
+  employment, posted date — the same fields `printCard` shows in the CLI),
+  each with **Judge** and **Add to tab** actions, plus a checkbox for
+  multi-select (**Judge selected**, **Add selected to tab**) since `judge`
+  and `tab add` already accept multiple ids server-side. A list header shows
+  the coverage/interpretation sentence the CLI writes to stderr
+  (`saySearchCoverage`/`interpretationSentence`) as plain on-page text.
+- Pagination is cursor-based "Load more" via `useInfiniteQuery` — not the
+  CLI's `--all`/follow-every-page behavior, which has no browser equivalent.
+- Semantic search (`--semantic`, `--from-profile`, `--min-match`,
+  `--preview`) is out of scope for this phase; `/search` only exposes
+  word/filter search. It is expected as a later, separate slice.
+
+**`/tabs`** is two pages:
+
+- `/tabs`: a card per tab (name, description, posting count) with **Open**,
+  **Rename**, **Delete**, and a "New tab" form (name + optional description
+  → `POST /api/tabs`).
+- `/tabs/[name]`: the tab's contents, reusing the same posting-card list
+  component `/search` uses, backed by `GET /api/tabs/[name]` (same
+  sort/order/limit/cursor and cursor-pagination shape as search). Each card
+  gets **Remove from tab** (`POST /api/tabs/[name]/remove`) alongside
+  **Judge**. A banner surfaces `no_longer_present` postings the way the CLI
+  reports them separately.
+- No confirm-gate on any tab route. All of `create`/`list`/`get`/`add`/
+  `remove`/`rename`/`delete` are plain queries/mutations, same shape as the
+  profile routes already built. Query hooks live in `tab-queries.ts`,
+  following `profile-queries.ts`'s `useQuery`/`useMutation` +
+  `invalidateQueries(['tabs'])` pattern.
+
+**Judge dialog and the confirm-spend split:**
+
+- `<ConfirmSpendDialog>` is the generic component the top-level
+  "confirm-then-spend pattern" section below describes — built once in this
+  phase, reused unchanged by `routines`/`schedules`/`watches` later.
+  `<JudgeDialog>` is judge-specific: it owns the two-call flow, wraps
+  `<ConfirmSpendDialog>` for the confirm step, and owns the live progress
+  view after confirmation. It opens from a search card's/tab card's
+  **Judge** action (single id) or **Judge selected** (many ids).
+- The two `POST /judge` calls are handled differently, not identically:
+  - The **first (dry-run)** call carries no `confirm` and is small buffered
+    JSON — routed through the existing `callAsAccount`, exactly like every
+    other mutation.
+  - The **second (confirmed)** call carries `confirm: <token>` and is a real
+    judging run, so it is genuinely streamed: `Accept: application/x-ndjson`,
+    and `app/api/judge/route.ts` returns the upstream `ReadableStream`
+    straight through as the response body instead of buffering it.
+- **New proxy primitive**: `callAsAccount` always calls `response.text()`, so
+  it cannot serve the streamed call. This phase adds `streamAsAccount` to
+  `packages/web/lib/pinloop-server.ts` — same one-shot 401-refresh-and-retry
+  as `callAsAccount` (a `Response`'s status/headers are readable before its
+  body is consumed, so a 401 can be detected and retried without touching
+  the stream), but on success it returns the raw `Response` rather than
+  parsed JSON. The route handler re-seals the session cookie on the *outer*
+  response before streaming starts if a renewal happened during the retry.
+- **Client-side consumption**: a `useJudgeStream` hook does `fetch` plus
+  manual `ReadableStream` reading (mirroring `readLines` in `pinloop.ts`),
+  splitting on newlines and parsing each line as a `ProgressEvent` from
+  `@pinloop/shared`. Events (`call-started`/`thinking`/`verdict`/
+  `call-failed`/`error`) are pushed into local component state as they
+  arrive and render as a live per-posting progress list; the final line is
+  the real answer, resolved as the hook's result — same ordering guarantee
+  as the CLI (nothing is held back to check if it's the last line).
+  `call-failed`/`error` events render inline against the affected posting
+  rather than failing the whole dialog, matching how the CLI keeps going and
+  reports per-posting failures.
 
 ## The confirm-then-spend pattern
 
@@ -262,13 +362,16 @@ that exact two-call contract and gives it one shared UI:
   the `*.test.ts` files referenced in its comments live in the private
   monorepo this package was extracted from — so this closes an existing gap
   rather than inheriting a pre-existing test suite.
-- `packages/web` gets component/integration tests concentrated on the two
+- `packages/web` gets component/integration tests concentrated on the
   highest-risk flows: the confirm-spend dialog (token round-trip and expiry
-  handling) and the resume upload flow (PDF validation, size cap, reading
-  back the server's page/character report) — plus route-handler tests for the
-  auth refresh-and-retry-once logic, since that is newly written
-  security-critical code rather than a straight port of something already
-  proven.
+  handling), the resume upload flow (PDF validation, size cap, reading back
+  the server's page/character report), and — added in the search/tabs/judge
+  phase — `streamAsAccount`'s 401-retry-once behavior on a streaming
+  response, `/api/judge`'s dual buffered/streamed modes, and
+  `<JudgeDialog>`'s progress rendering fed a fake NDJSON stream. Plus
+  route-handler tests for the auth refresh-and-retry-once logic generally,
+  since that is newly written security-critical code rather than a straight
+  port of something already proven.
 - The CLI's compiled-output package-boundary test has no equivalent need once
   `packages/cli` is removed; the `packages/web` ↔ `packages/shared` boundary
   is enforced by normal workspace dependency declarations instead.
@@ -291,7 +394,8 @@ before this step is executed; it does not block starting steps 1–2.
 ## Out of scope for this design
 
 - Redesigning or changing any backend endpoint or response shape.
-- The exact visual design system, component library, or branding for
-  `packages/web` (a follow-up concern for implementation, not this spec).
+- Broader branding for `packages/web` beyond the Tailwind/shadcn foundation
+  decided in "Visual foundation, decided for the search/tabs/judge phase"
+  above (a full brand pass is still a follow-up concern, not this spec).
 - Marketing/landing-page content on pinloop.ai outside of pointing existing
   copy at the new web app.
