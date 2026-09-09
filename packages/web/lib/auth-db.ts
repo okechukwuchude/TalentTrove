@@ -94,3 +94,7 @@ export async function consumePasswordResetToken(rawToken: string): Promise<{ use
   if (!row || row.expiresAt.getTime() < Date.now()) return null;
   return { userId: row.userId };
 }
+
+export async function updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
+  await getDb().update(users).set({ passwordHash }).where(eq(users.id, userId));
+}
