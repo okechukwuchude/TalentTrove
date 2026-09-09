@@ -18,7 +18,7 @@ export function TextDocumentCard({
   perDocumentCap: number;
   resettable?: boolean;
 }) {
-  const { data, isLoading } = useProfileDocumentText(name);
+  const { data, isLoading, isError, error } = useProfileDocumentText(name);
   const save = useSaveTextDocument(name);
   const reset = useResetToDefault(name);
   const [draft, setDraft] = useState('');
@@ -37,6 +37,8 @@ export function TextDocumentCard({
       <h2>{label}</h2>
       {isLoading ? (
         <p>Loading…</p>
+      ) : isError ? (
+        <p role="alert">{error.message}</p>
       ) : (
         <>
           {usingDefault && <p>Using the default Pinloop ships. Edit below to store your own.</p>}

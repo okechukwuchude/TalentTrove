@@ -73,4 +73,12 @@ describe('TextDocumentCard', () => {
     expect(screen.queryByRole('button', { name: /reset to default/i })).not.toBeInTheDocument();
     expect(screen.getByText(/using the default pinloop ships/i)).toBeInTheDocument();
   });
+
+  it('shows an error instead of an empty editable form when the document fails to load', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'not signed in' }, 401)));
+    renderWithClient(<TextDocumentCard name="background" label="Background" perDocumentCap={100} />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Background')).not.toBeInTheDocument();
+  });
 });

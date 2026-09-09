@@ -4,7 +4,10 @@ import { WHOLE_PROFILE_CAP } from '@pinloop/shared';
 import { useProfileDocuments } from '../../lib/profile-queries.ts';
 
 export function WholeProfileUsage() {
-  const { data } = useProfileDocuments();
+  const { data, isError, error } = useProfileDocuments();
+  if (isError) {
+    return <p role="alert">{error.message}</p>;
+  }
   const textBytes = (data ?? [])
     .filter((document) => document.kind === 'text')
     .reduce((total, document) => total + document.bytes, 0);

@@ -1,7 +1,14 @@
+import { FILE_CAP } from '@pinloop/shared';
 import { PinloopServerError, callAsAccount } from '../../../../lib/pinloop-server.ts';
 import { requireSession, withRenewedCookie } from '../../../../lib/require-session.ts';
 
 type RouteParams = { params: Promise<{ name: string }> };
+
+function firstRow(json: unknown): Record<string, unknown> {
+  const asRecord = json as { rows?: unknown; results?: unknown } | undefined;
+  const rows = asRecord?.rows ?? asRecord?.results;
+  return Array.isArray(rows) && rows.length > 0 ? (rows[0] as Record<string, unknown>) : {};
+}
 
 export async function GET(request: Request, { params }: RouteParams): Promise<Response> {
   const auth = await requireSession(request);
@@ -13,7 +20,7 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Re
       auth.pass,
       `/profile/${encodeURIComponent(name)}?include=text`,
     );
-    return withRenewedCookie(auth.session, Response.json(json as Record<string, unknown>), renewedPass);
+    return withRenewedCookie(auth.session, Response.json(firstRow(json)), renewedPass);
   } catch (error) {
     const message = error instanceof PinloopServerError ? error.message : `could not load '${name}'`;
     const status = error instanceof PinloopServerError ? error.status : 500;
@@ -31,7 +38,14 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
     let result: Awaited<ReturnType<typeof callAsAccount>>;
     if (contentType.includes('application/pdf')) {
       const filename = new URL(request.url).searchParams.get('filename') ?? 'resume.pdf';
+      const contentLength = Number(request.headers.get('content-length') ?? '');
+      if (Number.isFinite(contentLength) && contentLength > FILE_CAP) {
+        return Response.json({ error: 'that file is over the 10MB limit' }, { status: 413 });
+      }
       const bytes = new Uint8Array(await request.arrayBuffer());
+      if (bytes.length > FILE_CAP) {
+        return Response.json({ error: 'that file is over the 10MB limit' }, { status: 413 });
+      }
       result = await callAsAccount(
         auth.pass,
         `/profile/${encodeURIComponent(name)}?filename=${encodeURIComponent(filename)}`,
@@ -39,13 +53,16 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
       );
     } else {
       const body = (await request.json().catch(() => null)) as { text?: unknown } | null;
-      const text = typeof body?.text === 'string' ? body.text : '';
+      if (typeof body?.text !== 'string') {
+        return Response.json({ error: 'the request must include a text field to store' }, { status: 400 });
+      }
+      const text = body.text;
       result = await callAsAccount(auth.pass, `/profile/${encodeURIComponent(name)}`, {
         method: 'POST',
         body: { text },
       });
     }
-    const response = Response.json((result.json ?? {}) as Record<string, unknown>);
+    const response = Response.json(firstRow(result.json));
     return withRenewedCookie(auth.session, response, result.renewedPass);
   } catch (error) {
     const message = error instanceof PinloopServerError ? error.message : `could not store '${name}'`;

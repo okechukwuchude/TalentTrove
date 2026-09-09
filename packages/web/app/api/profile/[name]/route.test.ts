@@ -23,7 +23,7 @@ const params = (name: string) => ({ params: Promise.resolve({ name }) });
 
 describe('GET /api/profile/[name]', () => {
   it('asks the server for the document including its text', async () => {
-    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ text: 'hello', stored: true }));
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ rows: [{ text: 'hello', stored: true }] }));
     vi.stubGlobal('fetch', doFetch);
     const request = new Request('http://localhost/api/profile/background', { headers: await signedInHeaders() });
     const response = await GET(request, params('background'));
@@ -37,7 +37,7 @@ describe('GET /api/profile/[name]', () => {
 
 describe('POST /api/profile/[name]', () => {
   it('sends a JSON body for a text document', async () => {
-    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ bytes: 5 }));
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ rows: [{ bytes: 5 }] }));
     vi.stubGlobal('fetch', doFetch);
     const request = new Request('http://localhost/api/profile/background', {
       method: 'POST',
@@ -46,13 +46,14 @@ describe('POST /api/profile/[name]', () => {
     });
     const response = await POST(request, params('background'));
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ bytes: 5 });
     const [, init] = doFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
     expect(init.headers['Content-Type']).toBe('application/json');
     expect(init.body).toBe(JSON.stringify({ text: 'hello' }));
   });
 
   it('forwards raw bytes for a PDF upload, carrying the filename in the query string', async () => {
-    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ pages: 1, characters: 100, bytes: 9 }));
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ rows: [{ pages: 1, characters: 100, bytes: 9 }] }));
     vi.stubGlobal('fetch', doFetch);
     const bytes = new Uint8Array([1, 2, 3]);
     const request = new Request('http://localhost/api/profile/resume?filename=my-resume.pdf', {
@@ -62,12 +63,43 @@ describe('POST /api/profile/[name]', () => {
     });
     const response = await POST(request, params('resume'));
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ pages: 1, characters: 100, bytes: 9 });
     const [calledPath, init] = doFetch.mock.calls[0] as [
       string,
       RequestInit & { headers: Record<string, string> },
     ];
     expect(calledPath).toContain('/profile/resume?filename=my-resume.pdf');
     expect(init.headers['Content-Type']).toBe('application/pdf');
+  });
+
+  it('refuses a PDF upload over the 10MB cap without calling the server', async () => {
+    const doFetch = vi.fn();
+    vi.stubGlobal('fetch', doFetch);
+    const request = new Request('http://localhost/api/profile/resume?filename=big.pdf', {
+      method: 'POST',
+      headers: {
+        ...(await signedInHeaders()),
+        'Content-Type': 'application/pdf',
+        'Content-Length': String(10 * 1024 * 1024 + 1),
+      },
+      body: new Uint8Array([1, 2, 3]),
+    });
+    const response = await POST(request, params('resume'));
+    expect(response.status).toBe(413);
+    expect(doFetch).not.toHaveBeenCalled();
+  });
+
+  it('refuses to store a request with no text field, rather than silently storing empty text', async () => {
+    const doFetch = vi.fn();
+    vi.stubGlobal('fetch', doFetch);
+    const request = new Request('http://localhost/api/profile/background', {
+      method: 'POST',
+      headers: { ...(await signedInHeaders()), 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const response = await POST(request, params('background'));
+    expect(response.status).toBe(400);
+    expect(doFetch).not.toHaveBeenCalled();
   });
 });
 
