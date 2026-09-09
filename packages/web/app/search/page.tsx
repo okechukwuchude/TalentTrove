@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { readSession } from '../../lib/session.ts';
+import { readCurrentUser } from '../../lib/require-session.ts';
 import { SearchView } from './search-view.tsx';
 
 export default async function SearchPage() {
@@ -9,8 +9,8 @@ export default async function SearchPage() {
     .getAll()
     .map((cookie) => `${cookie.name}=${cookie.value}`)
     .join('; ');
-  const session = await readSession(cookieHeader);
-  if (!session.accessToken) redirect('/sign-in');
+  const user = await readCurrentUser(cookieHeader);
+  if (!user) redirect('/sign-in');
 
   return <SearchView />;
 }

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { readSession } from '../../../lib/session.ts';
+import { readCurrentUser } from '../../../lib/require-session.ts';
 import { TabDetailView } from './tab-detail-view.tsx';
 
 type PageParams = { params: Promise<{ name: string }> };
@@ -11,8 +11,8 @@ export default async function TabDetailPage({ params }: PageParams) {
     .getAll()
     .map((cookie) => `${cookie.name}=${cookie.value}`)
     .join('; ');
-  const session = await readSession(cookieHeader);
-  if (!session.accessToken) redirect('/sign-in');
+  const user = await readCurrentUser(cookieHeader);
+  if (!user) redirect('/sign-in');
   const { name } = await params;
 
   return <TabDetailView name={name} />;
