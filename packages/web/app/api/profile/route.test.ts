@@ -1,43 +1,48 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GET } from './route.ts';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import postgres from 'postgres';
+import { runMigrations } from '../../../db/migrate.ts';
 import { sealSession, sessionCookieHeader } from '../../../lib/session.ts';
 
-beforeEach(() => {
-  process.env.SESSION_SECRET = 'a'.repeat(32);
-});
+const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+describe.skipIf(!testDatabaseUrl)('GET /api/profile', () => {
+  let authDb: typeof import('../../../lib/auth-db.ts');
+  let GET: typeof import('./route.ts')['GET'];
+  let sql: ReturnType<typeof postgres>;
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
+  beforeAll(async () => {
+    process.env.SESSION_SECRET = 'a'.repeat(32);
+    process.env.DATABASE_URL = testDatabaseUrl;
+    await runMigrations(testDatabaseUrl!);
+    authDb = await import('../../../lib/auth-db.ts');
+    ({ GET } = await import('./route.ts'));
+    sql = postgres(testDatabaseUrl!);
+  });
 
-async function signedInRequest(url: string): Promise<Request> {
-  const sealed = await sealSession({ accessToken: 'a1' });
-  const cookie = sessionCookieHeader(sealed).split(';')[0]!;
-  return new Request(url, { headers: { cookie } });
-}
+  afterEach(async () => {
+    await sql`delete from sessions`;
+    await sql`delete from users`;
+  });
 
-describe('GET /api/profile', () => {
-  it('refuses a signed-out request', async () => {
+  afterAll(async () => {
+    await sql.end();
+  });
+
+  async function signedInCookie(): Promise<string> {
+    const user = await authDb.createUser('a@example.com', 'hashed-password');
+    const token = await authDb.createSession(user.id);
+    const sealed = await sealSession({ token });
+    return sessionCookieHeader(sealed).split(';')[0]!;
+  }
+
+  it('returns 401 when not signed in', async () => {
     const response = await GET(new Request('http://localhost/api/profile'));
     expect(response.status).toBe(401);
   });
 
-  it('returns the rows the server sent back', async () => {
-    const rows = [{ name: 'resume', kind: 'file', bytes: 55000 }];
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ rows })));
-    const response = await GET(await signedInRequest('http://localhost/api/profile'));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ rows });
-  });
-
-  it('surfaces the server error on failure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'server unavailable' }, 500)));
-    const response = await GET(await signedInRequest('http://localhost/api/profile'));
-    expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ error: 'server unavailable' });
+  it('returns 501 — profile storage is not built yet', async () => {
+    const cookie = await signedInCookie();
+    const response = await GET(new Request('http://localhost/api/profile', { headers: { cookie } }));
+    expect(response.status).toBe(501);
   });
 });

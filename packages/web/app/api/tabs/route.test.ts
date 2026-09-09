@@ -1,86 +1,59 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GET, POST } from './route.ts';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import postgres from 'postgres';
+import { runMigrations } from '../../../db/migrate.ts';
 import { sealSession, sessionCookieHeader } from '../../../lib/session.ts';
 
-beforeEach(() => {
-  process.env.SESSION_SECRET = 'a'.repeat(32);
-});
+const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+describe.skipIf(!testDatabaseUrl)('/api/tabs', () => {
+  let authDb: typeof import('../../../lib/auth-db.ts');
+  let route: typeof import('./route.ts');
+  let sql: ReturnType<typeof postgres>;
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
+  beforeAll(async () => {
+    process.env.SESSION_SECRET = 'a'.repeat(32);
+    process.env.DATABASE_URL = testDatabaseUrl;
+    await runMigrations(testDatabaseUrl!);
+    authDb = await import('../../../lib/auth-db.ts');
+    route = await import('./route.ts');
+    sql = postgres(testDatabaseUrl!);
+  });
 
-async function signedInRequest(init: RequestInit = {}): Promise<Request> {
-  const sealed = await sealSession({ accessToken: 'a1' });
-  const cookie = sessionCookieHeader(sealed).split(';')[0]!;
-  return new Request('http://localhost/api/tabs', { ...init, headers: { ...init.headers, cookie } });
-}
+  afterEach(async () => {
+    await sql`delete from sessions`;
+    await sql`delete from users`;
+  });
 
-describe('GET /api/tabs', () => {
-  it('refuses a signed-out request', async () => {
-    const response = await GET(new Request('http://localhost/api/tabs'));
+  afterAll(async () => {
+    await sql.end();
+  });
+
+  async function signedInCookie(): Promise<string> {
+    const user = await authDb.createUser('a@example.com', 'hashed-password');
+    const token = await authDb.createSession(user.id);
+    const sealed = await sealSession({ token });
+    return sessionCookieHeader(sealed).split(';')[0]!;
+  }
+
+  it('GET returns 401 when not signed in', async () => {
+    const response = await route.GET(new Request('http://localhost/api/tabs'));
     expect(response.status).toBe(401);
   });
 
-  it('returns the rows the server sent back', async () => {
-    const rows = [{ name: 'shortlist', items: 3 }];
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ rows })));
-    const response = await GET(await signedInRequest());
-    expect(await response.json()).toEqual({ rows });
+  it('GET returns 501 when signed in', async () => {
+    const cookie = await signedInCookie();
+    const response = await route.GET(new Request('http://localhost/api/tabs', { headers: { cookie } }));
+    expect(response.status).toBe(501);
   });
 
-  it('requests a generous page size from the upstream server', async () => {
-    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ rows: [] }));
-    vi.stubGlobal('fetch', doFetch);
-    await GET(await signedInRequest());
-    const [calledPath] = doFetch.mock.calls[0] as [string, RequestInit];
-    expect(calledPath).toContain('/tab?limit=100');
-  });
-});
-
-describe('POST /api/tabs', () => {
-  it('refuses a request with no name', async () => {
-    vi.stubGlobal('fetch', vi.fn());
-    const response = await POST(
-      await signedInRequest({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      }),
-    );
-    expect(response.status).toBe(400);
+  it('POST returns 401 when not signed in', async () => {
+    const response = await route.POST(new Request('http://localhost/api/tabs', { method: 'POST' }));
+    expect(response.status).toBe(401);
   });
 
-  it('creates the tab with an optional description', async () => {
-    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ rows: [{ name: 'shortlist', items: 0 }] }));
-    vi.stubGlobal('fetch', doFetch);
-    const response = await POST(
-      await signedInRequest({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'shortlist', description: 'roles to apply to' }),
-      }),
-    );
-    expect(response.status).toBe(200);
-    const [calledPath, init] = doFetch.mock.calls[0] as [string, RequestInit];
-    expect(calledPath).toContain('/tab');
-    expect(JSON.parse(init.body as string)).toEqual({ name: 'shortlist', description: 'roles to apply to' });
-  });
-
-  it('surfaces the server error on failure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'server unavailable' }, 500)));
-    const response = await POST(
-      await signedInRequest({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'shortlist' }),
-      }),
-    );
-    expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ error: 'server unavailable' });
+  it('POST returns 501 when signed in', async () => {
+    const cookie = await signedInCookie();
+    const response = await route.POST(new Request('http://localhost/api/tabs', { method: 'POST', headers: { cookie } }));
+    expect(response.status).toBe(501);
   });
 });

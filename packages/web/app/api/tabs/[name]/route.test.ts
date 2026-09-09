@@ -1,60 +1,69 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DELETE, GET } from './route.ts';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import postgres from 'postgres';
+import { runMigrations } from '../../../../db/migrate.ts';
 import { sealSession, sessionCookieHeader } from '../../../../lib/session.ts';
 
-beforeEach(() => {
-  process.env.SESSION_SECRET = 'a'.repeat(32);
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
-
-async function signedInHeaders(): Promise<Record<string, string>> {
-  const sealed = await sealSession({ accessToken: 'a1' });
-  return { cookie: sessionCookieHeader(sealed).split(';')[0]! };
-}
-
+const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const params = (name: string) => ({ params: Promise.resolve({ name }) });
 
-describe('GET /api/tabs/[name]', () => {
-  it('refuses a signed-out request', async () => {
-    const response = await GET(new Request('http://localhost/api/tabs/shortlist'), params('shortlist'));
+describe.skipIf(!testDatabaseUrl)('/api/tabs/[name]', () => {
+  let authDb: typeof import('../../../../lib/auth-db.ts');
+  let route: typeof import('./route.ts');
+  let sql: ReturnType<typeof postgres>;
+
+  beforeAll(async () => {
+    process.env.SESSION_SECRET = 'a'.repeat(32);
+    process.env.DATABASE_URL = testDatabaseUrl;
+    await runMigrations(testDatabaseUrl!);
+    authDb = await import('../../../../lib/auth-db.ts');
+    route = await import('./route.ts');
+    sql = postgres(testDatabaseUrl!);
+  });
+
+  afterEach(async () => {
+    await sql`delete from sessions`;
+    await sql`delete from users`;
+  });
+
+  afterAll(async () => {
+    await sql.end();
+  });
+
+  async function signedInCookie(): Promise<string> {
+    const user = await authDb.createUser('a@example.com', 'hashed-password');
+    const token = await authDb.createSession(user.id);
+    const sealed = await sealSession({ token });
+    return sessionCookieHeader(sealed).split(';')[0]!;
+  }
+
+  it('GET returns 401 when not signed in', async () => {
+    const response = await route.GET(new Request('http://localhost/api/tabs/main'), params('main'));
     expect(response.status).toBe(401);
   });
 
-  it('forwards limit/cursor and returns rows, cursor, and no_longer_present', async () => {
-    const doFetch = vi.fn().mockResolvedValue(
-      jsonResponse({ rows: [{ id: 'p1' }], cursor: 'c2', no_longer_present: [{ posting_id: 'p9', item_id: 'i9' }] }),
+  it('GET returns 501 when signed in', async () => {
+    const cookie = await signedInCookie();
+    const response = await route.GET(
+      new Request('http://localhost/api/tabs/main', { headers: { cookie } }),
+      params('main'),
     );
-    vi.stubGlobal('fetch', doFetch);
-    const request = new Request('http://localhost/api/tabs/shortlist?limit=20&cursor=c1', {
-      headers: await signedInHeaders(),
-    });
-    const response = await GET(request, params('shortlist'));
-    expect(await response.json()).toEqual({
-      rows: [{ id: 'p1' }],
-      cursor: 'c2',
-      no_longer_present: [{ posting_id: 'p9', item_id: 'i9' }],
-      coverage: undefined,
-    });
-    const [calledPath] = doFetch.mock.calls[0] as [string];
-    expect(calledPath).toContain('/tab/shortlist?limit=20&cursor=c1');
+    expect(response.status).toBe(501);
   });
-});
 
-describe('DELETE /api/tabs/[name]', () => {
-  it('deletes the tab', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ rows: [{ name: 'shortlist', items: 3 }] })));
-    const request = new Request('http://localhost/api/tabs/shortlist', {
-      method: 'DELETE',
-      headers: await signedInHeaders(),
-    });
-    const response = await DELETE(request, params('shortlist'));
-    expect(await response.json()).toEqual({ deleted: true });
+  it('DELETE returns 401 when not signed in', async () => {
+    const response = await route.DELETE(
+      new Request('http://localhost/api/tabs/main', { method: 'DELETE' }),
+      params('main'),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it('DELETE returns 501 when signed in', async () => {
+    const cookie = await signedInCookie();
+    const response = await route.DELETE(
+      new Request('http://localhost/api/tabs/main', { method: 'DELETE', headers: { cookie } }),
+      params('main'),
+    );
+    expect(response.status).toBe(501);
   });
 });

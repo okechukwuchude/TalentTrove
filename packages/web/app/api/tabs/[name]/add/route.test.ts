@@ -1,55 +1,52 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { POST } from './route.ts';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import postgres from 'postgres';
+import { runMigrations } from '../../../../../db/migrate.ts';
 import { sealSession, sessionCookieHeader } from '../../../../../lib/session.ts';
 
-beforeEach(() => {
-  process.env.SESSION_SECRET = 'a'.repeat(32);
-});
+const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const params = (name: string) => ({ params: Promise.resolve({ name }) });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+describe.skipIf(!testDatabaseUrl)('POST /api/tabs/[name]/add', () => {
+  let authDb: typeof import('../../../../../lib/auth-db.ts');
+  let POST: typeof import('./route.ts')['POST'];
+  let sql: ReturnType<typeof postgres>;
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-}
-
-async function signedInHeaders(): Promise<Record<string, string>> {
-  const sealed = await sealSession({ accessToken: 'a1' });
-  return { cookie: sessionCookieHeader(sealed).split(';')[0]! };
-}
-
-describe('POST /api/tabs/[name]/add', () => {
-  it('refuses a request with no ids', async () => {
-    vi.stubGlobal('fetch', vi.fn());
-    const request = new Request('http://localhost/api/tabs/shortlist/add', {
-      method: 'POST',
-      headers: { ...(await signedInHeaders()), 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-    const response = await POST(request, { params: Promise.resolve({ name: 'shortlist' }) });
-    expect(response.status).toBe(400);
+  beforeAll(async () => {
+    process.env.SESSION_SECRET = 'a'.repeat(32);
+    process.env.DATABASE_URL = testDatabaseUrl;
+    await runMigrations(testDatabaseUrl!);
+    authDb = await import('../../../../../lib/auth-db.ts');
+    ({ POST } = await import('./route.ts'));
+    sql = postgres(testDatabaseUrl!);
   });
 
-  it('adds the ids and returns rows/already_present/unknown/coverage', async () => {
-    const doFetch = vi.fn().mockResolvedValue(
-      jsonResponse({ rows: [{ id: 'p1' }], already_present: ['p2'], unknown: ['p3'], coverage: { covered: 1, total: 3 } }),
+  afterEach(async () => {
+    await sql`delete from sessions`;
+    await sql`delete from users`;
+  });
+
+  afterAll(async () => {
+    await sql.end();
+  });
+
+  async function signedInCookie(): Promise<string> {
+    const user = await authDb.createUser('a@example.com', 'hashed-password');
+    const token = await authDb.createSession(user.id);
+    const sealed = await sealSession({ token });
+    return sessionCookieHeader(sealed).split(';')[0]!;
+  }
+
+  it('returns 401 when not signed in', async () => {
+    const response = await POST(new Request('http://localhost/api/tabs/main/add', { method: 'POST' }), params('main'));
+    expect(response.status).toBe(401);
+  });
+
+  it('returns 501 when signed in', async () => {
+    const cookie = await signedInCookie();
+    const response = await POST(
+      new Request('http://localhost/api/tabs/main/add', { method: 'POST', headers: { cookie } }),
+      params('main'),
     );
-    vi.stubGlobal('fetch', doFetch);
-    const request = new Request('http://localhost/api/tabs/shortlist/add', {
-      method: 'POST',
-      headers: { ...(await signedInHeaders()), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: ['p1', 'p2', 'p3'] }),
-    });
-    const response = await POST(request, { params: Promise.resolve({ name: 'shortlist' }) });
-    expect(await response.json()).toEqual({
-      rows: [{ id: 'p1' }],
-      already_present: ['p2'],
-      unknown: ['p3'],
-      coverage: { covered: 1, total: 3 },
-    });
-    const [calledPath, init] = doFetch.mock.calls[0] as [string, RequestInit];
-    expect(calledPath).toContain('/tab/shortlist/add');
-    expect(JSON.parse(init.body as string)).toEqual({ ids: ['p1', 'p2', 'p3'] });
+    expect(response.status).toBe(501);
   });
 });
