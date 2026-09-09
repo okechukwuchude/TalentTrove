@@ -266,6 +266,17 @@ verdict text) read well on screen.
   profile routes already built. Query hooks live in `tab-queries.ts`,
   following `profile-queries.ts`'s `useQuery`/`useMutation` +
   `invalidateQueries(['tabs'])` pattern.
+- **This is also when `/search`'s cards get their first real action.**
+  `<PostingList>`/`<PostingCard>` (built in the search phase) shipped with an
+  unused `renderActions`/`actions` extension point specifically for this: the
+  tabs phase wires **Add to tab** into it — a small picker (existing tabs
+  fetched via `useTabs`, plus an inline "new tab" field) that calls
+  `POST /api/tabs/[name]/add` with the one posting's id. Search's own
+  multi-select (**Add selected to tab**) is included the same way, since
+  `tab add` already accepts multiple ids server-side. **Judge** stays absent
+  from both `/search` and `/tabs/[name]` cards until the judge-dialog phase
+  — nothing in this phase renders a Judge action anywhere, even though the
+  card component has room for one.
 
 **Judge dialog and the confirm-spend split:**
 
