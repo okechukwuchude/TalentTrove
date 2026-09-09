@@ -6,7 +6,7 @@ export async function GET(request: Request): Promise<Response> {
   if ('unauthorized' in auth) return auth.unauthorized;
 
   try {
-    const { json, renewedPass } = await callAsAccount(auth.pass, '/tab');
+    const { json, renewedPass } = await callAsAccount(auth.pass, '/tab?limit=100');
     const rows = (json as { rows?: unknown } | undefined)?.rows;
     return withRenewedCookie(auth.session, Response.json({ rows: Array.isArray(rows) ? rows : [] }), renewedPass);
   } catch (error) {

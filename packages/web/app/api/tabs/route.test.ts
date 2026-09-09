@@ -32,6 +32,14 @@ describe('GET /api/tabs', () => {
     const response = await GET(await signedInRequest());
     expect(await response.json()).toEqual({ rows });
   });
+
+  it('requests a generous page size from the upstream server', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ rows: [] }));
+    vi.stubGlobal('fetch', doFetch);
+    await GET(await signedInRequest());
+    const [calledPath] = doFetch.mock.calls[0] as [string, RequestInit];
+    expect(calledPath).toContain('/tab?limit=100');
+  });
 });
 
 describe('POST /api/tabs', () => {
