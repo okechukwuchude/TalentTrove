@@ -2,11 +2,7 @@ import { sealData, unsealData } from 'iron-session';
 
 export const SESSION_COOKIE_NAME = 'pinloop_session';
 
-export type SessionData = {
-  accessToken?: string;
-  refreshToken?: string;
-  email?: string;
-};
+export type SessionData = { token?: string };
 
 function sessionSecret(): string {
   const secret = process.env.SESSION_SECRET;

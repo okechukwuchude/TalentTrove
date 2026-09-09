@@ -16,10 +16,10 @@ afterEach(() => {
 });
 
 describe('sealSession / readSession', () => {
-  it('round-trips session data through a cookie header', async () => {
-    const sealed = await sealSession({ accessToken: 'a1', refreshToken: 'r1', email: 'a@example.com' });
+  it('round-trips a session token through a cookie header', async () => {
+    const sealed = await sealSession({ token: 'raw-token-value' });
     const session = await readSession(`${SESSION_COOKIE_NAME}=${sealed}`);
-    expect(session).toEqual({ accessToken: 'a1', refreshToken: 'r1', email: 'a@example.com' });
+    expect(session).toEqual({ token: 'raw-token-value' });
   });
 
   it('returns an empty session when there is no cookie at all', async () => {
@@ -27,21 +27,15 @@ describe('sealSession / readSession', () => {
   });
 
   it('returns an empty session for a tampered cookie value, rather than throwing', async () => {
-    // Corrupting a byte WITHIN the sealed string, not appending after it: iron-session's
-    // sealed format tolerates (and silently ignores) trailing bytes appended past the end
-    // of a valid seal — appending garbage there still unseals to the original data, verified
-    // directly against the real library during this plan's execution. Flipping a byte inside
-    // the seal's fixed-length prefix (password id + salt, always present regardless of
-    // payload size) is what actually invalidates the HMAC and proves tampering is caught.
-    const sealed = await sealSession({ accessToken: 'a1' });
+    const sealed = await sealSession({ token: 'raw-token-value' });
     const tampered = `${sealed.slice(0, 20)}X${sealed.slice(21)}`;
     expect(await readSession(`${SESSION_COOKIE_NAME}=${tampered}`)).toEqual({});
   });
 
   it('reads the right cookie out of a header carrying several', async () => {
-    const sealed = await sealSession({ accessToken: 'a1' });
+    const sealed = await sealSession({ token: 'raw-token-value' });
     const header = `other=1; ${SESSION_COOKIE_NAME}=${sealed}; another=2`;
-    expect(await readSession(header)).toEqual({ accessToken: 'a1' });
+    expect(await readSession(header)).toEqual({ token: 'raw-token-value' });
   });
 });
 
