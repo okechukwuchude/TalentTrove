@@ -41,7 +41,7 @@ export function PostingList({
       ))}
       {hasNextPage && (
         <Button variant="outline" disabled={isFetchingNextPage} onClick={onLoadMore}>
-          {isFetchingNextPage ? 'Loading…' : 'Load more'}
+          {isFetchingNextPage ? (postings.length === 0 ? 'Searching…' : 'Loading…') : 'Load more'}
         </Button>
       )}
     </div>

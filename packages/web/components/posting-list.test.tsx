@@ -64,6 +64,22 @@ describe('PostingList', () => {
     expect(screen.queryByText('No postings matched.')).not.toBeInTheDocument();
   });
 
+  it('shows "Searching…" instead of "Load more" while auto-advancing past an empty page', () => {
+    render(
+      <PostingList
+        postings={[]}
+        isLoading={false}
+        isError={false}
+        emptyMessage="No postings matched."
+        hasNextPage
+        isFetchingNextPage
+        onLoadMore={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /searching/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^load more$/i })).not.toBeInTheDocument();
+  });
+
   it('shows a Load more button only when there is a next page, and calls onLoadMore', () => {
     const onLoadMore = vi.fn();
     const { rerender } = render(

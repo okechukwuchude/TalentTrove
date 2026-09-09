@@ -1,7 +1,21 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { asPosting, type Posting } from './posting.ts';
+
+/**
+ * The real search server can hand back a page with zero rows and a live
+ * cursor — "nothing matched in the batch just scanned, but there is more to
+ * check" — rather than ever refusing or settling for good. A ranked word
+ * search can walk its whole scoring ceiling that way (seen 20, 40, 60... all
+ * empty) before a match surfaces. Left alone, the Search tab would show a
+ * bare "Load more" button with no results and no explanation, so useSearch
+ * keeps fetching on its own while every page so far is empty, up to this many
+ * *additional* pages, and hands back control once rows appear or the server
+ * runs out of cursor.
+ */
+export const MAX_AUTO_ADVANCE_PAGES = 8;
 
 export type SearchFilters = {
   q?: string;
@@ -44,7 +58,7 @@ function searchBody(filters: SearchFilters, cursor: string | undefined): Record<
 }
 
 export function useSearch(filters: SearchFilters | null) {
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: ['search', filters],
     queryFn: async ({ pageParam }): Promise<SearchPage> => {
       const data = await fetchJson<SearchResponse>('/api/search', {
@@ -58,6 +72,28 @@ export function useSearch(filters: SearchFilters | null) {
     getNextPageParam: (lastPage) => lastPage.cursor ?? undefined,
     enabled: filters !== null,
   });
+
+  const advanced = useRef(0);
+  useEffect(() => {
+    advanced.current = 0;
+  }, [filters]);
+
+  useEffect(() => {
+    const pages = query.data?.pages ?? [];
+    const totalRows = pages.reduce((sum, page) => sum + page.rows.length, 0);
+    if (
+      pages.length > 0 &&
+      totalRows === 0 &&
+      query.hasNextPage &&
+      !query.isFetchingNextPage &&
+      advanced.current < MAX_AUTO_ADVANCE_PAGES
+    ) {
+      advanced.current += 1;
+      query.fetchNextPage();
+    }
+  }, [query.data, query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
+
+  return query;
 }
 
 export function useCompanies(query: string) {

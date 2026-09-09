@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
-import { useCompanies, useSearch } from './search-queries.ts';
+import { MAX_AUTO_ADVANCE_PAGES, useCompanies, useSearch } from './search-queries.ts';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -75,6 +75,50 @@ describe('useSearch', () => {
     const { result } = renderHook(() => useSearch({}), { wrapper });
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(result.current.hasNextPage).toBe(false);
+  });
+
+  it('automatically advances past empty pages until rows appear', async () => {
+    // The real server can hand back a page with zero rows and a live cursor —
+    // "nothing in this batch, but there is more to check" — rather than ever
+    // refusing or erroring. A person clicking Search once should not have to
+    // notice that and click Load more themselves.
+    const doFetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ rows: [], cursor: 'c1' }))
+      .mockResolvedValueOnce(jsonResponse({ rows: [], cursor: 'c2' }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          rows: [{ id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://x/p1' }],
+          cursor: null,
+        }),
+      );
+    vi.stubGlobal('fetch', doFetch);
+
+    // A stable filters reference, the way SearchView's own state behaves between
+    // renders (only a fresh search submission creates a new one) — an inline
+    // object literal here would be recreated on every render renderHook triggers,
+    // which would reset the hook's own auto-advance counter every time.
+    const filters = { q: 'engineer' };
+    const { result } = renderHook(() => useSearch(filters), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.pages).toHaveLength(3));
+    expect(result.current.data?.pages.at(-1)?.rows).toHaveLength(1);
+    expect(result.current.hasNextPage).toBe(false);
+    expect(doFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops auto-advancing at the page cap, leaving a next page for a manual Load more', async () => {
+    // A fresh Response per call: a shared instance's body can only be read once,
+    // and this hook is expected to call fetch many times in a row.
+    const doFetch = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ rows: [], cursor: 'always-more' })));
+    vi.stubGlobal('fetch', doFetch);
+
+    const filters = { q: 'engineer' };
+    const { result } = renderHook(() => useSearch(filters), { wrapper });
+
+    await waitFor(() => expect(doFetch).toHaveBeenCalledTimes(MAX_AUTO_ADVANCE_PAGES + 1));
+    expect(result.current.hasNextPage).toBe(true);
+    expect(result.current.isFetchingNextPage).toBe(false);
   });
 });
 
