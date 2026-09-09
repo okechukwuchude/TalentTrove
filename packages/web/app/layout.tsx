@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import { QueryProvider } from './query-provider.tsx';
-import { readSession } from '../lib/session.ts';
+import { readCurrentUser } from '../lib/require-session.ts';
 import { AppNav } from '../components/app-nav.tsx';
 import './globals.css';
 
@@ -15,13 +15,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     .getAll()
     .map((cookie) => `${cookie.name}=${cookie.value}`)
     .join('; ');
-  const session = await readSession(cookieHeader);
+  const user = await readCurrentUser(cookieHeader);
 
   return (
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground">
         <QueryProvider>
-          <AppNav signedIn={Boolean(session.accessToken)} email={session.email} />
+          <AppNav signedIn={Boolean(user)} email={user?.email} />
           <div className="mx-auto max-w-4xl px-4 py-8">{children}</div>
         </QueryProvider>
       </body>

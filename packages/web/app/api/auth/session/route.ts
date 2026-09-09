@@ -1,7 +1,7 @@
-import { readSession } from '../../../../lib/session.ts';
+import { readCurrentUser } from '../../../../lib/require-session.ts';
 
 export async function GET(request: Request): Promise<Response> {
-  const session = await readSession(request.headers.get('cookie'));
-  if (!session.accessToken) return Response.json({ signedIn: false });
-  return Response.json({ signedIn: true, email: session.email ?? null });
+  const user = await readCurrentUser(request.headers.get('cookie'));
+  if (!user) return Response.json({ signedIn: false });
+  return Response.json({ signedIn: true, email: user.email });
 }
