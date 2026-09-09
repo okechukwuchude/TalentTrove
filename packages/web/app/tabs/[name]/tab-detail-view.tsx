@@ -29,19 +29,21 @@ export function TabDetailView({ name }: { name: string }) {
         isFetchingNextPage={tab.isFetchingNextPage}
         onLoadMore={() => tab.fetchNextPage()}
         emptyMessage="This tab holds no postings that are still in the corpus."
-        renderActions={(posting) =>
-          posting.item_id ? (
+        renderActions={(posting) => {
+          const itemId = posting.item_id;
+          if (!itemId) return null;
+          return (
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={remove.isPending}
-              onClick={() => remove.mutate([posting.item_id as string])}
+              onClick={() => remove.mutate([itemId])}
             >
               Remove from tab
             </Button>
-          ) : null
-        }
+          );
+        }}
       />
       {remove.isError && (
         <p role="alert" className="text-sm text-destructive">
