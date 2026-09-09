@@ -87,11 +87,10 @@ export async function createPasswordResetToken(userId: string): Promise<string> 
 export async function consumePasswordResetToken(rawToken: string): Promise<{ userId: string } | null> {
   const tokenHash = hashToken(rawToken);
   const [row] = await getDb()
-    .select({ userId: passwordResetTokens.userId, expiresAt: passwordResetTokens.expiresAt })
-    .from(passwordResetTokens)
-    .where(and(eq(passwordResetTokens.tokenHash, tokenHash), isNull(passwordResetTokens.consumedAt)));
+    .update(passwordResetTokens)
+    .set({ consumedAt: new Date() })
+    .where(and(eq(passwordResetTokens.tokenHash, tokenHash), isNull(passwordResetTokens.consumedAt)))
+    .returning({ userId: passwordResetTokens.userId, expiresAt: passwordResetTokens.expiresAt });
   if (!row || row.expiresAt.getTime() < Date.now()) return null;
-
-  await getDb().update(passwordResetTokens).set({ consumedAt: new Date() }).where(eq(passwordResetTokens.tokenHash, tokenHash));
   return { userId: row.userId };
 }
