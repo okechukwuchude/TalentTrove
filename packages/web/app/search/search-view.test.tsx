@@ -66,14 +66,24 @@ describe('SearchView', () => {
   });
 
   it('fetches the next page when Load more is clicked', async () => {
-    const doFetch = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({ rows: [{ id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://x/p1' }], cursor: 'c2' }),
-      )
-      .mockResolvedValueOnce(
+    // Each result now renders an <AddToTabPicker>, which fires its own
+    // /api/tabs fetch as soon as it mounts (interleaved with, not after,
+    // the search pagination calls) — so the mock is keyed by request URL
+    // rather than call order, and only /api/search calls count toward
+    // "how many pages have been fetched".
+    let searchCalls = 0;
+    const doFetch = vi.fn((input: RequestInfo) => {
+      if (input === '/api/tabs') return Promise.resolve(jsonResponse({ rows: [] }));
+      searchCalls += 1;
+      if (searchCalls === 1) {
+        return Promise.resolve(
+          jsonResponse({ rows: [{ id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://x/p1' }], cursor: 'c2' }),
+        );
+      }
+      return Promise.resolve(
         jsonResponse({ rows: [{ id: 'p2', title: 'Senior Engineer', company: 'Beta', url: 'https://x/p2' }], cursor: null }),
       );
+    });
     vi.stubGlobal('fetch', doFetch);
     renderWithClient(<SearchView />);
 
@@ -82,6 +92,21 @@ describe('SearchView', () => {
     fireEvent.click(screen.getByRole('button', { name: /load more/i }));
 
     await waitFor(() => expect(screen.getByRole('link', { name: 'Senior Engineer' })).toBeInTheDocument());
-    expect(doFetch).toHaveBeenCalledTimes(2);
+    expect(searchCalls).toBe(2);
+  });
+
+  it('renders an Add to tab action on each result', async () => {
+    const doFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ rows: [{ id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://x/p1' }], cursor: null }),
+      )
+      .mockResolvedValue(jsonResponse({ rows: [] }));
+    vi.stubGlobal('fetch', doFetch);
+    renderWithClient(<SearchView />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await screen.findByRole('link', { name: 'Staff Engineer' });
+    expect(screen.getByRole('button', { name: 'Add to tab' })).toBeInTheDocument();
   });
 });

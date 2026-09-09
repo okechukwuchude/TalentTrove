@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSearch, type SearchFilters as SearchFiltersValue } from '../../lib/search-queries.ts';
 import { PostingList } from '../../components/posting-list.tsx';
 import { SearchFilters } from './search-filters.tsx';
+import { AddToTabPicker } from './add-to-tab-picker.tsx';
 
 /**
  * The covered/total portion of the CLI's coverage sentence (`coverageIn`,
@@ -47,6 +48,7 @@ export function SearchView() {
             isFetchingNextPage={search.isFetchingNextPage}
             onLoadMore={() => search.fetchNextPage()}
             emptyMessage="No postings matched that search."
+            renderActions={(posting) => <AddToTabPicker postingId={posting.id} />}
           />
         </>
       )}
