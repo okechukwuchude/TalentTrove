@@ -1,30 +1,18 @@
-import type { Pass } from './pinloop-server.ts';
-import { type SessionData, readSession, sealSession, sessionCookieHeader } from './session.ts';
+import { resolveSessionToken } from './auth-db.ts';
+import { readSession } from './session.ts';
 
-export type SessionResult = { pass: Pass; session: SessionData } | { unauthorized: Response };
+export type CurrentUser = { userId: string; email: string };
 
-export async function requireSession(request: Request): Promise<SessionResult> {
-  const session = await readSession(request.headers.get('cookie'));
-  if (!session.accessToken) {
-    return { unauthorized: Response.json({ error: 'not signed in' }, { status: 401 }) };
-  }
-  return {
-    pass: { accessToken: session.accessToken, refreshToken: session.refreshToken },
-    session,
-  };
+export async function readCurrentUser(cookieHeader: string | null): Promise<CurrentUser | null> {
+  const session = await readSession(cookieHeader);
+  if (!session.token) return null;
+  return resolveSessionToken(session.token);
 }
 
-export async function withRenewedCookie(
-  originalSession: SessionData,
-  response: Response,
-  renewedPass: Pass | undefined,
-): Promise<Response> {
-  if (!renewedPass) return response;
-  const sealed = await sealSession({
-    ...originalSession,
-    accessToken: renewedPass.accessToken,
-    refreshToken: renewedPass.refreshToken,
-  });
-  response.headers.append('Set-Cookie', sessionCookieHeader(sealed));
-  return response;
+export type SessionResult = { user: CurrentUser } | { unauthorized: Response };
+
+export async function requireSession(request: Request): Promise<SessionResult> {
+  const user = await readCurrentUser(request.headers.get('cookie'));
+  if (!user) return { unauthorized: Response.json({ error: 'not signed in' }, { status: 401 }) };
+  return { user };
 }
