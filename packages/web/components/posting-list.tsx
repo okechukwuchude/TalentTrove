@@ -32,7 +32,7 @@ export function PostingList({
       </p>
     );
   }
-  if (postings.length === 0) return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
+  if (postings.length === 0 && !hasNextPage) return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
 
   return (
     <div className="flex flex-col gap-3">

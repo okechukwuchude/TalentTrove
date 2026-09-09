@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 import { PostingList } from './posting-list.tsx';
 import type { Posting } from '../lib/posting.ts';
 
@@ -9,6 +9,10 @@ const postings: Posting[] = [
   { id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://example.com/p1', posted_at: null },
   { id: 'p2', title: 'Senior Engineer', company: 'Beta', url: 'https://example.com/p2', posted_at: null },
 ];
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('PostingList', () => {
   it('shows the empty message when there are no postings and nothing is loading', () => {
@@ -43,6 +47,21 @@ describe('PostingList', () => {
     expect(screen.getByRole('link', { name: 'Senior Engineer' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Judge p1' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Judge p2' })).toBeInTheDocument();
+  });
+
+  it('renders Load more (not the empty message) when there are zero postings but hasNextPage is true', () => {
+    render(
+      <PostingList
+        postings={[]}
+        isLoading={false}
+        isError={false}
+        emptyMessage="No postings matched."
+        hasNextPage
+        onLoadMore={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /load more/i })).toBeInTheDocument();
+    expect(screen.queryByText('No postings matched.')).not.toBeInTheDocument();
   });
 
   it('shows a Load more button only when there is a next page, and calls onLoadMore', () => {

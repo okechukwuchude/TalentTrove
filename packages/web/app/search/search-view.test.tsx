@@ -49,6 +49,22 @@ describe('SearchView', () => {
     expect(await screen.findByText('No postings matched that search.')).toBeInTheDocument();
   });
 
+  it('shows the covered/total prefix when the response includes an interpretation', async () => {
+    const doFetch = vi.fn().mockResolvedValue(
+      jsonResponse({
+        rows: [{ id: 'p1', title: 'Staff Engineer', company: 'Acme', url: 'https://x/p1' }],
+        cursor: null,
+        interpretation: { covered: 3, total: 10 },
+      }),
+    );
+    vi.stubGlobal('fetch', doFetch);
+    renderWithClient(<SearchView />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    expect(await screen.findByText(/3 of 10 matched — 1 posting found so far/)).toBeInTheDocument();
+  });
+
   it('fetches the next page when Load more is clicked', async () => {
     const doFetch = vi
       .fn()

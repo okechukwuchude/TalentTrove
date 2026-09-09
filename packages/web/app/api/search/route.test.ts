@@ -51,4 +51,42 @@ describe('POST /api/search', () => {
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: 'server unavailable' });
   });
+
+  it('passes through the interpretation object when the server includes one', async () => {
+    const doFetch = vi.fn().mockResolvedValue(
+      jsonResponse({
+        rows: [{ id: 'p1', title: 'Staff Engineer' }],
+        cursor: 'c2',
+        interpretation: { covered: 3, total: 10 },
+      }),
+    );
+    vi.stubGlobal('fetch', doFetch);
+
+    const response = await POST(await signedInRequest({ q: 'engineer' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      rows: [{ id: 'p1', title: 'Staff Engineer' }],
+      cursor: 'c2',
+      interpretation: { covered: 3, total: 10 },
+    });
+  });
+
+  it('drops disallowed fields (semantic, from_profile, min_match, preview) before forwarding to /search', async () => {
+    const doFetch = vi.fn().mockResolvedValue(jsonResponse({ rows: [], cursor: null }));
+    vi.stubGlobal('fetch', doFetch);
+
+    await POST(
+      await signedInRequest({
+        q: 'engineer',
+        semantic: true,
+        from_profile: true,
+        min_match: 0.8,
+        preview: true,
+        all: true,
+      }),
+    );
+
+    const [, init] = doFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ q: 'engineer' });
+  });
 });

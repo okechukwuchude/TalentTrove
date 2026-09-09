@@ -15,8 +15,12 @@ export type SearchFilters = {
 
 export type Company = { id: string; name: string; website_domain?: string; posting_count: number };
 
-type SearchResponse = { rows: Record<string, unknown>[]; cursor: string | null };
-type SearchPage = { rows: Posting[]; cursor: string | null };
+type SearchResponse = {
+  rows: Record<string, unknown>[];
+  cursor: string | null;
+  interpretation?: Record<string, unknown>;
+};
+type SearchPage = { rows: Posting[]; cursor: string | null; interpretation?: Record<string, unknown> };
 
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = init ? await fetch(input, init) : await fetch(input);
@@ -48,7 +52,7 @@ export function useSearch(filters: SearchFilters | null) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(searchBody(filters ?? {}, pageParam as string | undefined)),
       });
-      return { rows: data.rows.map(asPosting), cursor: data.cursor };
+      return { rows: data.rows.map(asPosting), cursor: data.cursor, interpretation: data.interpretation };
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.cursor ?? undefined,

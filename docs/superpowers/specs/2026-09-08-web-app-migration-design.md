@@ -236,7 +236,14 @@ verdict text) read well on screen.
   multi-select (**Judge selected**, **Add selected to tab**) since `judge`
   and `tab add` already accept multiple ids server-side. A list header shows
   the coverage/interpretation sentence the CLI writes to stderr
-  (`saySearchCoverage`/`interpretationSentence`) as plain on-page text.
+  (`saySearchCoverage`/`interpretationSentence`) as plain on-page text. The
+  first shipped version of this renders only the coverage-fraction portion
+  of that sentence — the `covered`/`total` numbers every server answer that
+  can leave something out carries, shown as "N of M matched" — and not the
+  CLI's full semantic-mode wording, ceiling-applies note, or unjudged-postings
+  note; porting those word-for-word belongs with the semantic-search slice
+  below, once there's a page that actually exercises semantic mode, rather
+  than being guessed at ahead of it.
 - Pagination is cursor-based "Load more" via `useInfiniteQuery` — not the
   CLI's `--all`/follow-every-page behavior, which has no browser equivalent.
 - Semantic search (`--semantic`, `--from-profile`, `--min-match`,
