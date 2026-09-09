@@ -271,12 +271,22 @@ verdict text) read well on screen.
   unused `renderActions`/`actions` extension point specifically for this: the
   tabs phase wires **Add to tab** into it — a small picker (existing tabs
   fetched via `useTabs`, plus an inline "new tab" field) that calls
-  `POST /api/tabs/[name]/add` with the one posting's id. Search's own
-  multi-select (**Add selected to tab**) is included the same way, since
-  `tab add` already accepts multiple ids server-side. **Judge** stays absent
-  from both `/search` and `/tabs/[name]` cards until the judge-dialog phase
-  — nothing in this phase renders a Judge action anywhere, even though the
-  card component has room for one.
+  `POST /api/tabs/[name]/add` with the one posting's id, for a single
+  posting at a time. **Judge** stays absent from both `/search` and
+  `/tabs/[name]` cards until the judge-dialog phase — nothing in the tabs
+  phase renders a Judge action anywhere, even though the card component has
+  room for one.
+- **`Add selected to tab` (search's multi-select bulk action) is explicitly
+  deferred to the judge-dialog phase, corrected here from an earlier draft
+  of this section that committed it to the tabs phase.** `tab add` already
+  accepts multiple ids server-side, so the backend is not the blocker —
+  but building it means adding the multi-select checkbox state
+  `<PostingList>` deliberately doesn't carry yet (see the search phase's
+  design), and the judge-dialog phase already needs that same multi-select
+  state for **Judge selected**. Building both bulk actions together, once,
+  against one piece of new state, is more coherent than building
+  multi-select twice a plan-cycle apart. The tabs phase ships only the
+  single-posting **Add to tab** described above.
 
 **Judge dialog and the confirm-spend split:**
 
