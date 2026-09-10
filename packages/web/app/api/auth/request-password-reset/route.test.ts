@@ -54,4 +54,44 @@ describe.skipIf(!testDatabaseUrl)('POST /api/auth/request-password-reset', () =>
     expect(response.status).toBe(200);
     expect(sendPasswordResetEmail).not.toHaveBeenCalled();
   });
+
+  it('uses APP_ORIGIN for the reset link, ignoring the request Host, when it is set', async () => {
+    const previous = process.env.APP_ORIGIN;
+    process.env.APP_ORIGIN = 'https://app.pinloop.example';
+    try {
+      await authDb.createUser('b@example.com', 'hashed-password');
+      const request = new Request('http://attacker-controlled.example/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Host: 'attacker-controlled.example' },
+        body: JSON.stringify({ email: 'b@example.com' }),
+      });
+      const response = await POST(request);
+
+      expect(response.status).toBe(200);
+      expect(sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+      const [, linkArg] = sendPasswordResetEmail.mock.calls[0]!;
+      expect(linkArg).toBe(`https://app.pinloop.example/reset-password?token=${linkArg.split('token=')[1]}`);
+      expect(linkArg).not.toContain('attacker-controlled.example');
+    } finally {
+      if (previous === undefined) delete process.env.APP_ORIGIN;
+      else process.env.APP_ORIGIN = previous;
+    }
+  });
+
+  it('falls back to the request origin outside production when APP_ORIGIN is unset', async () => {
+    const previous = process.env.APP_ORIGIN;
+    delete process.env.APP_ORIGIN;
+    try {
+      await authDb.createUser('c@example.com', 'hashed-password');
+      const response = await POST(jsonRequest({ email: 'c@example.com' }));
+
+      expect(response.status).toBe(200);
+      expect(sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+      const [, linkArg] = sendPasswordResetEmail.mock.calls[0]!;
+      expect(linkArg).toContain('http://localhost/reset-password?token=');
+    } finally {
+      if (previous === undefined) delete process.env.APP_ORIGIN;
+      else process.env.APP_ORIGIN = previous;
+    }
+  });
 });

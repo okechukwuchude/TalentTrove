@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { getDb } from './db.ts';
 import { passwordResetTokens, sessions, users } from '../db/schema.ts';
 import { generateToken, hashToken } from './tokens.ts';
@@ -32,12 +32,19 @@ export async function findUserByEmail(email: string): Promise<AuthUser | null> {
   };
 }
 
+// A separate SELECT-then-UPDATE here would let two concurrent failed
+// sign-ins both read the same failedAttempts value and both write the same
+// incremented count, letting an attacker keep the counter from ever
+// reaching LOCKOUT_THRESHOLD. Doing the increment and the lock decision in
+// one UPDATE lets Postgres serialize concurrent callers on the row.
 export async function recordFailedSignIn(userId: string): Promise<void> {
-  const [row] = await getDb().select({ failedAttempts: users.failedAttempts }).from(users).where(eq(users.id, userId));
-  if (!row) return;
-  const nextCount = row.failedAttempts + 1;
-  const lockedUntil = nextCount >= LOCKOUT_THRESHOLD ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null;
-  await getDb().update(users).set({ failedAttempts: nextCount, lockedUntil }).where(eq(users.id, userId));
+  await getDb()
+    .update(users)
+    .set({
+      failedAttempts: sql`${users.failedAttempts} + 1`,
+      lockedUntil: sql`case when ${users.failedAttempts} + 1 >= ${LOCKOUT_THRESHOLD} then now() + interval '15 minutes' else null end`,
+    })
+    .where(eq(users.id, userId));
 }
 
 export async function resetFailedAttempts(userId: string): Promise<void> {

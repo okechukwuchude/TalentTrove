@@ -6,6 +6,9 @@ Environment variables (e.g. in `packages/web/.env.local`):
 
 - `SESSION_SECRET` — any string of at least 32 characters.
 - `DATABASE_URL` — a Postgres connection string.
+- `APP_ORIGIN` — the app's own public URL, used to build password-reset
+  links safely (falls back to the request's own origin outside production,
+  but is required in production).
 - `RESEND_API_KEY` — needed only for the "forgot password" email; sign-in,
   sign-up, and everything else work without it.
 - `PASSWORD_RESET_FROM_EMAIL` — optional; defaults to Resend's own test
