@@ -20,6 +20,7 @@ import {
 } from '@pinloop/shared';
 import { parseResumePdf } from '../../../../lib/pdf.ts';
 import {
+  deleteProfileDocument,
   getProfileDocument,
   sumOtherTextBytes,
   upsertFileDocument,
@@ -118,8 +119,11 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
   return Response.json({ text, stored: true });
 }
 
-export async function DELETE(request: Request, _params: RouteParams): Promise<Response> {
+export async function DELETE(request: Request, { params }: RouteParams): Promise<Response> {
   const auth = await requireSession(request);
   if ('unauthorized' in auth) return auth.unauthorized;
-  return Response.json({ error: 'profile storage is not built yet' }, { status: 501 });
+  const { name } = await params;
+
+  await deleteProfileDocument(auth.user.userId, name);
+  return Response.json({ deleted: true });
 }

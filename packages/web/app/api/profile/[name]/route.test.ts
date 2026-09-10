@@ -350,3 +350,78 @@ startxref
     expect(stored?.originalFilename).toBe('my-resume.pdf');
   });
 });
+
+describe.skipIf(!testDatabaseUrl)('DELETE /api/profile/[name]', () => {
+  let authDb: typeof import('../../../../lib/auth-db.ts');
+  let profileDb: typeof import('../../../../lib/profile-db.ts');
+  let route: typeof import('./route.ts');
+  let sql: ReturnType<typeof postgres>;
+
+  beforeAll(async () => {
+    process.env.DATABASE_URL = testDatabaseUrl;
+    await runMigrations(testDatabaseUrl!);
+    authDb = await import('../../../../lib/auth-db.ts');
+    profileDb = await import('../../../../lib/profile-db.ts');
+    route = await import('./route.ts');
+    sql = postgres(testDatabaseUrl!);
+  });
+
+  afterEach(async () => {
+    await sql`delete from profile_documents`;
+    await sql`delete from sessions`;
+    await sql`delete from users`;
+  });
+
+  afterAll(async () => {
+    await sql.end();
+  });
+
+  async function signedInCookie(): Promise<{ cookie: string; userId: string }> {
+    const user = await authDb.createUser('a@example.com', 'hashed-password');
+    const token = await authDb.createSession(user.id);
+    const sealed = await sealSession({ token });
+    return { cookie: sessionCookieHeader(sealed).split(';')[0]!, userId: user.id };
+  }
+
+  it('returns 401 when not signed in', async () => {
+    const response = await route.DELETE(
+      new Request('http://localhost/api/profile/constraints', { method: 'DELETE' }),
+      params('constraints'),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it('deletes a stored document', async () => {
+    const { cookie, userId } = await signedInCookie();
+    await profileDb.upsertTextDocument(userId, 'constraints', 'must be remote');
+
+    const response = await route.DELETE(
+      new Request('http://localhost/api/profile/constraints', { method: 'DELETE', headers: { cookie } }),
+      params('constraints'),
+    );
+    expect(await response.json()).toEqual({ deleted: true });
+    expect(await profileDb.getProfileDocument(userId, 'constraints')).toBeNull();
+  });
+
+  it('deleting a document that was never stored is treated as already done', async () => {
+    const { cookie } = await signedInCookie();
+    const response = await route.DELETE(
+      new Request('http://localhost/api/profile/never-stored', { method: 'DELETE', headers: { cookie } }),
+      params('never-stored'),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ deleted: true });
+  });
+
+  it('deletes a resume file document', async () => {
+    const { cookie, userId } = await signedInCookie();
+    await profileDb.upsertFileDocument(userId, 'resume', Buffer.from('%PDF-1.4 fake'), 'r.pdf');
+
+    const response = await route.DELETE(
+      new Request('http://localhost/api/profile/resume', { method: 'DELETE', headers: { cookie } }),
+      params('resume'),
+    );
+    expect(await response.json()).toEqual({ deleted: true });
+    expect(await profileDb.getProfileDocument(userId, 'resume')).toBeNull();
+  });
+});
