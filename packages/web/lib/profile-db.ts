@@ -14,6 +14,33 @@ export type ProfileDocumentDetail = ProfileDocumentSummary & {
   textContent: string | null;
 };
 
+/** The JSON shape a profile document row takes in every route response. */
+export type ProfileDocumentRowJson = {
+  name: string;
+  kind: 'text' | 'file';
+  bytes: number;
+  updated_at: string;
+  original_filename?: string;
+};
+
+/**
+ * The one serializer for a profile document row's public JSON shape, used by
+ * both GET /api/profile's list mapper and POST /api/profile/[name]'s
+ * file-branch response. `original_filename` is omitted (not sent as null)
+ * when the row has none, matching the list endpoint's original convention --
+ * having two hand-written serializers disagree on this was exactly the kind
+ * of drift this function exists to prevent.
+ */
+export function toRowJson(row: ProfileDocumentSummary): ProfileDocumentRowJson {
+  return {
+    name: row.name,
+    kind: row.kind,
+    bytes: row.bytes,
+    updated_at: row.updatedAt.toISOString(),
+    ...(row.originalFilename ? { original_filename: row.originalFilename } : {}),
+  };
+}
+
 const SUMMARY_COLUMNS = {
   name: profileDocuments.name,
   kind: profileDocuments.kind,

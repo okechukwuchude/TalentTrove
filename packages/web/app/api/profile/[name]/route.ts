@@ -23,6 +23,7 @@ import {
   deleteProfileDocument,
   getProfileDocument,
   sumOtherTextBytes,
+  toRowJson,
   upsertFileDocument,
   upsertTextDocument,
 } from '../../../../lib/profile-db.ts';
@@ -108,11 +109,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
     }
     const row = await upsertFileDocument(auth.user.userId, name, bytes, filename);
     return Response.json({
-      name: row.name,
-      kind: row.kind,
-      bytes: row.bytes,
-      updated_at: row.updatedAt.toISOString(),
-      original_filename: row.originalFilename,
+      ...toRowJson(row),
       pages: parsed.pages,
       pages_read: parsed.pagesRead,
       characters: parsed.characters,
