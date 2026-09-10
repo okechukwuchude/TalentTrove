@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
+import { overFileCapRefusal, perDocumentRefusal } from '@pinloop/shared';
 import { runMigrations } from '../../../../db/migrate.ts';
 import { sealSession, sessionCookieHeader } from '../../../../lib/session.ts';
 
@@ -285,6 +286,38 @@ describe.skipIf(!testDatabaseUrl)('POST /api/profile/[name]', () => {
       params('resume'),
     );
     expect(response.status).toBe(413);
+  });
+
+  it('refuses an oversized file upload by Content-Length before reading the body', async () => {
+    const { cookie } = await signedInCookie();
+    const claimedSize = 20 * 1024 * 1024; // well over FILE_CAP (10 MB), body itself stays tiny
+    const response = await route.POST(
+      new Request('http://localhost/api/profile/resume?filename=big.pdf', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/pdf', 'Content-Length': String(claimedSize) },
+        body: Buffer.from('%PDF-1.4 tiny'),
+      }),
+      params('resume'),
+    );
+    expect(response.status).toBe(413);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe(overFileCapRefusal(claimedSize));
+  });
+
+  it('refuses an oversized text upload by Content-Length before reading the body', async () => {
+    const { cookie } = await signedInCookie();
+    const claimedSize = 200_000; // well over PER_DOCUMENT_CAP (64 KB), body itself stays tiny
+    const response = await route.POST(
+      new Request('http://localhost/api/profile/background', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json', 'Content-Length': String(claimedSize) },
+        body: JSON.stringify({ text: 'tiny' }),
+      }),
+      params('background'),
+    );
+    expect(response.status).toBe(413);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe(perDocumentRefusal(claimedSize));
   });
 
   it('rejects a file that does not begin like a PDF', async () => {

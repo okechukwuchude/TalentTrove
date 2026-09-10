@@ -52,6 +52,19 @@ function kindFor(name: string): 'text' | 'file' {
   return reservedKind(name) ?? 'text';
 }
 
+/**
+ * Parses a Content-Length header into a positive byte count, so the size
+ * caps below can refuse an oversized body *before* buffering it (see the
+ * `contentLength` checks in POST). An absent or unparseable header returns
+ * null rather than 0 -- absence must fall through to the existing
+ * post-buffering checks, not be trusted as "small".
+ */
+function parsePositiveContentLength(raw: string | null): number | null {
+  if (raw === null) return null;
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
 export async function POST(request: Request, { params }: RouteParams): Promise<Response> {
   const auth = await requireSession(request);
   if ('unauthorized' in auth) return auth.unauthorized;
@@ -72,7 +85,12 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
     return Response.json({ error: wrongKindRefusal(name) }, { status: 400 });
   }
 
+  const contentLength = parsePositiveContentLength(request.headers.get('content-length'));
+
   if (isFileUpload) {
+    if (contentLength !== null && contentLength > FILE_CAP) {
+      return Response.json({ error: overFileCapRefusal(contentLength) }, { status: 413 });
+    }
     const filename = new URL(request.url).searchParams.get('filename') ?? 'resume.pdf';
     const bytes = Buffer.from(await request.arrayBuffer());
     if (bytes.length > FILE_CAP) {
@@ -99,6 +117,10 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
       characters: parsed.characters,
       ...(parsed.note ? { note: parsed.note } : {}),
     });
+  }
+
+  if (contentLength !== null && contentLength > PER_DOCUMENT_CAP) {
+    return Response.json({ error: perDocumentRefusal(contentLength) }, { status: 413 });
   }
 
   const body = (await request.json().catch(() => null)) as { text?: unknown } | null;
