@@ -25,4 +25,13 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     const names = rows.map((row) => row.table_name).sort();
     expect(names).toEqual(['password_reset_tokens', 'sessions', 'users']);
   });
+
+  it('creates profile_documents', async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+      and table_name = 'profile_documents'
+    `;
+    expect(rows).toHaveLength(1);
+  });
 });
