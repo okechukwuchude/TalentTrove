@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
-import { overFileCapRefusal, perDocumentRefusal } from '@pinloop/shared';
+import { overFileCapRefusal, perDocumentRefusal, wrongKindRefusal } from '@pinloop/shared';
 import { runMigrations } from '../../../../db/migrate.ts';
 import { sealSession, sessionCookieHeader } from '../../../../lib/session.ts';
 
@@ -107,6 +107,18 @@ describe.skipIf(!testDatabaseUrl)('GET /api/profile/[name]', () => {
     // wording is pinned per CLAUDE.md, so the assertion is widened to
     // match either phrasing rather than editing the shared string.
     expect(body.error).toMatch(/holds a( \S+)? file, not text/i);
+  });
+
+  it('refuses a file-kind name even before anything has been stored', async () => {
+    const { cookie } = await signedInCookie();
+
+    const response = await route.GET(
+      new Request('http://localhost/api/profile/resume', { headers: { cookie } }),
+      params('resume'),
+    );
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe(wrongKindRefusal('resume'));
   });
 });
 

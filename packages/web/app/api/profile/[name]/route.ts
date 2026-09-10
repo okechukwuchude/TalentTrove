@@ -35,11 +35,12 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Re
   if ('unauthorized' in auth) return auth.unauthorized;
   const { name } = await params;
 
+  if (kindFor(name) === 'file') {
+    return Response.json({ error: wrongKindRefusal(name) }, { status: 400 });
+  }
+
   const row = await getProfileDocument(auth.user.userId, name);
   if (row) {
-    if (row.kind === 'file') {
-      return Response.json({ error: wrongKindRefusal(name) }, { status: 400 });
-    }
     return Response.json({ text: row.textContent ?? '', stored: true });
   }
 
