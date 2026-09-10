@@ -1,7 +1,9 @@
 import {
+  DEFAULT_FILE_NAME,
   DEFAULT_JUDGE_PROMPT,
   DEFAULT_QUICK_JUDGE_PROMPT,
   FILE_CAP,
+  FILE_CONTENT_TYPE,
   JUDGE_PROMPT_NAME,
   NAME_RULE,
   PER_DOCUMENT_CAP,
@@ -77,7 +79,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
   }
 
   const contentType = request.headers.get('content-type') ?? '';
-  const isFileUpload = contentType.includes('application/pdf');
+  const isFileUpload = contentType.includes(FILE_CONTENT_TYPE);
   const expectedKind = kindFor(name);
 
   if (isFileUpload && expectedKind !== 'file') {
@@ -93,7 +95,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
     if (contentLength !== null && contentLength > FILE_CAP) {
       return Response.json({ error: overFileCapRefusal(contentLength) }, { status: 413 });
     }
-    const filename = new URL(request.url).searchParams.get('filename') ?? 'resume.pdf';
+    const filename = new URL(request.url).searchParams.get('filename') ?? DEFAULT_FILE_NAME;
     const bytes = Buffer.from(await request.arrayBuffer());
     if (bytes.length > FILE_CAP) {
       return Response.json({ error: overFileCapRefusal(bytes.length) }, { status: 413 });
