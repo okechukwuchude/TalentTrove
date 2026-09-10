@@ -347,6 +347,35 @@ describe.skipIf(!testDatabaseUrl)('POST /api/profile/[name]', () => {
     expect(body.error).toMatch(/%PDF-/);
   });
 
+  it('rejects a file that begins like a PDF but fails to actually parse', async () => {
+    const { cookie } = await signedInCookie();
+    // Passes the beginsLikeAPdf 5-byte '%PDF-' prefix check, but has none of
+    // the object/xref structure a real PDF needs, so pdf-parse's underlying
+    // pdf.js throws while trying to open it (verified locally: throws
+    // "InvalidPDFException: Invalid PDF structure") rather than either
+    // failing the header check or succeeding with 0 characters. This
+    // exercises the catch branch in POST's isFileUpload handling, which
+    // maps to willNotOpenRefusal -- the one PDF-validation outcome that had
+    // no test anywhere in the suite before this.
+    const corruptPdf = Buffer.from('%PDF-1.4\nnot even close to xref or objects\n%%EOF');
+    const response = await route.POST(
+      new Request('http://localhost/api/profile/resume?filename=corrupt.pdf', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/pdf' },
+        body: corruptPdf,
+      }),
+      params('resume'),
+    );
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: string };
+    // The exact parenthesized parser error text (from pdf-parse's vendored
+    // pdf.js) isn't practical to pin down verbatim across library versions,
+    // so this matches on willNotOpenRefusal's stable wrapping text -- which
+    // is what distinguishes this branch from notAPdfRefusal (the
+    // !beginsLikeAPdf branch, asserted above) and from a successful parse.
+    expect(body.error).toMatch(/starts like a PDF but could not be opened as a PDF/);
+  });
+
   it('stores a valid resume PDF and reports parse stats', async () => {
     const { cookie, userId } = await signedInCookie();
     // The same minimal-but-valid PDF-with-text fixture from lib/pdf.test.ts
