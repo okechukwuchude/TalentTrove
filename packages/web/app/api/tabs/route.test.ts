@@ -20,6 +20,8 @@ describe.skipIf(!testDatabaseUrl)('/api/tabs', () => {
   });
 
   afterEach(async () => {
+    await sql`delete from tab_items`;
+    await sql`delete from tabs`;
     await sql`delete from sessions`;
     await sql`delete from users`;
   });
@@ -29,7 +31,7 @@ describe.skipIf(!testDatabaseUrl)('/api/tabs', () => {
   });
 
   async function signedInCookie(): Promise<string> {
-    const user = await authDb.createUser('a@example.com', 'hashed-password');
+    const user = await authDb.createUser(`${crypto.randomUUID()}@example.com`, 'hashed-password');
     const token = await authDb.createSession(user.id);
     const sealed = await sealSession({ token });
     return sessionCookieHeader(sealed).split(';')[0]!;
@@ -40,10 +42,17 @@ describe.skipIf(!testDatabaseUrl)('/api/tabs', () => {
     expect(response.status).toBe(401);
   });
 
-  it('GET returns 501 when signed in', async () => {
+  it('GET returns the caller\'s tabs', async () => {
     const cookie = await signedInCookie();
+    await route.POST(
+      new Request('http://localhost/api/tabs', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'shortlist' }),
+      }),
+    );
     const response = await route.GET(new Request('http://localhost/api/tabs', { headers: { cookie } }));
-    expect(response.status).toBe(501);
+    expect(await response.json()).toEqual({ rows: [{ name: 'shortlist', description: null, items: 0 }] });
   });
 
   it('POST returns 401 when not signed in', async () => {
@@ -51,9 +60,43 @@ describe.skipIf(!testDatabaseUrl)('/api/tabs', () => {
     expect(response.status).toBe(401);
   });
 
-  it('POST returns 501 when signed in', async () => {
+  it('POST rejects a blank name', async () => {
     const cookie = await signedInCookie();
-    const response = await route.POST(new Request('http://localhost/api/tabs', { method: 'POST', headers: { cookie } }));
-    expect(response.status).toBe(501);
+    const response = await route.POST(
+      new Request('http://localhost/api/tabs', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: '  ' }),
+      }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('POST rejects a duplicate name for the same user', async () => {
+    const cookie = await signedInCookie();
+    const create = () =>
+      route.POST(
+        new Request('http://localhost/api/tabs', {
+          method: 'POST',
+          headers: { cookie, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'shortlist' }),
+        }),
+      );
+    await create();
+    const second = await create();
+    expect(second.status).toBe(400);
+    expect((await second.json()).error).toMatch(/already exists/i);
+  });
+
+  it('POST creates the tab with an optional description', async () => {
+    const cookie = await signedInCookie();
+    const response = await route.POST(
+      new Request('http://localhost/api/tabs', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'shortlist', description: 'jobs to revisit' }),
+      }),
+    );
+    expect(await response.json()).toEqual({ rows: [{ name: 'shortlist', description: 'jobs to revisit', items: 0 }] });
   });
 });
