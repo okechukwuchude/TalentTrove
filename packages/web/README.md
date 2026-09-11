@@ -34,3 +34,16 @@ npm test
 ```bash
 DATABASE_URL="postgres://..." npx drizzle-kit migrate
 ```
+
+## Seeding fake postings for local testing
+
+Tabs need job postings to reference, and the search/scraping project that
+populates `postings` for real doesn't exist yet. Until it does:
+
+```bash
+DATABASE_URL="postgres://..." npm run db:seed -w packages/web
+```
+
+This inserts a handful of fake postings (source `'seed'`) so you can create
+a tab, add postings to it, and see the "no longer present" banner by
+deleting one by hand.
