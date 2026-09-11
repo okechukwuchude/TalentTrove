@@ -85,7 +85,7 @@ export const tabItems = pgTable(
       .notNull()
       .references(() => tabs.id, { onDelete: 'cascade' }),
     postingId: uuid('posting_id').notNull(), // deliberately not a foreign key — see the design spec
-    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+    addedAt: timestamp('added_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('tab_items_tab_id_posting_id_key').on(table.tabId, table.postingId)],
 );

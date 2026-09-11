@@ -15,7 +15,7 @@ CREATE TABLE "tab_items" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tab_id" uuid NOT NULL,
 	"posting_id" uuid NOT NULL,
-	"added_at" timestamp with time zone DEFAULT now() NOT NULL
+	"added_at" timestamp (3) with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "tabs" (
