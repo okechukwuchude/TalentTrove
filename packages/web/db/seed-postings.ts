@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { pathToFileURL } from 'node:url';
 import { postings } from './schema.ts';
 
 const FAKE_POSTINGS = [
@@ -19,7 +20,7 @@ export async function seedPostings(databaseUrl: string): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL must be set to a Postgres connection string');
   await seedPostings(databaseUrl);
