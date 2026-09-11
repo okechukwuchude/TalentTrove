@@ -34,4 +34,14 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     `;
     expect(rows).toHaveLength(1);
   });
+
+  it('creates postings, tabs, and tab_items', async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+      and table_name in ('postings', 'tabs', 'tab_items')
+    `;
+    const names = rows.map((row) => row.table_name).sort();
+    expect(names).toEqual(['tab_items', 'tabs', 'postings'].sort());
+  });
 });
