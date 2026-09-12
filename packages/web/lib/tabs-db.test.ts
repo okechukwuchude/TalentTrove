@@ -37,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)('tabs-db', () => {
   async function insertPosting(overrides: Partial<{ title: string; company: string; url: string }> = {}): Promise<string> {
     const [row] = await sql<{ id: string }[]>`
       insert into postings (title, company, url, source)
-      values (${overrides.title ?? 'Staff Engineer'}, ${overrides.company ?? 'Acme'}, ${overrides.url ?? 'https://example.com/job'}, 'seed')
+      values (${overrides.title ?? 'Staff Engineer'}, ${overrides.company ?? 'Acme'}, ${overrides.url ?? `https://example.com/job/${crypto.randomUUID()}`}, 'seed')
       returning id
     `;
     return row!.id;

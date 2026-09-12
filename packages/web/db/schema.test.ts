@@ -44,4 +44,18 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     const names = rows.map((row) => row.table_name).sort();
     expect(names).toEqual(['tab_items', 'tabs', 'postings'].sort());
   });
+
+  it('adds a country column and a unique url index to postings', async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'postings' and column_name = 'country'
+    `;
+    expect(columns).toHaveLength(1);
+
+    const indexes = await sql<{ indexname: string }[]>`
+      select indexname from pg_indexes
+      where schemaname = 'public' and tablename = 'postings' and indexname = 'postings_url_key'
+    `;
+    expect(indexes).toHaveLength(1);
+  });
 });

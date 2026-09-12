@@ -14,7 +14,10 @@ export async function seedPostings(databaseUrl: string): Promise<void> {
   const client = postgres(databaseUrl, { max: 1 });
   try {
     const db = drizzle(client);
-    await db.insert(postings).values(FAKE_POSTINGS.map((posting) => ({ ...posting, source: 'seed' })));
+    await db
+      .insert(postings)
+      .values(FAKE_POSTINGS.map((posting) => ({ ...posting, source: 'seed' })))
+      .onConflictDoNothing();
   } finally {
     await client.end();
   }

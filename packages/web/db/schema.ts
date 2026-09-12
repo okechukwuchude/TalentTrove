@@ -50,18 +50,23 @@ export const profileDocuments = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.name] })],
 );
 
-export const postings = pgTable('postings', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  title: text('title').notNull(),
-  company: text('company').notNull(),
-  locations: text('locations').array(),
-  workplace: text('workplace'),
-  employment: text('employment'),
-  postedAt: timestamp('posted_at', { withTimezone: true }),
-  url: text('url').notNull(),
-  source: text('source').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const postings = pgTable(
+  'postings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    title: text('title').notNull(),
+    company: text('company').notNull(),
+    locations: text('locations').array(),
+    country: text('country'),
+    workplace: text('workplace'),
+    employment: text('employment'),
+    postedAt: timestamp('posted_at', { withTimezone: true }),
+    url: text('url').notNull(),
+    source: text('source').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('postings_url_key').on(table.url)],
+);
 
 export const tabs = pgTable(
   'tabs',
