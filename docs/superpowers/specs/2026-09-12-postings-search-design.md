@@ -163,7 +163,7 @@ just stop being literally the name.
   and never lets one adapter's failure stop the others: each adapter's
   fetch is wrapped so a thrown error becomes that adapter's `failed` message
   in the returned summary rather than an unhandled rejection.
-- **`POST /api/cron/ingest-postings`** — the route Vercel Cron calls. Reads
+- **`GET /api/cron/ingest-postings`** — the route Vercel Cron calls. Reads
   the `Authorization: Bearer <token>` header and compares it to
   `process.env.CRON_SECRET` (Vercel's own convention for cron-triggered
   routes — see "Securing cron jobs" in Vercel's docs) using

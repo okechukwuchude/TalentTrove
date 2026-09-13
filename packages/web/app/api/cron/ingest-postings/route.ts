@@ -14,7 +14,7 @@ function isAuthorized(request: Request): boolean {
   return timingSafeEqual(expected, actual);
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   if (!isAuthorized(request)) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
