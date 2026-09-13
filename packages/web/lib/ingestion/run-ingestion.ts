@@ -1,5 +1,5 @@
 import { sql as sqlOp } from 'drizzle-orm';
-import { getDb } from '../db.ts';
+import { closeDb, getDb } from '../db.ts';
 import { postings } from '../../db/schema.ts';
 import { adzunaAdapter } from './adzuna.ts';
 import { ashbyAdapter } from './ashby.ts';
@@ -69,4 +69,9 @@ async function upsertPostings(raw: RawPosting[]): Promise<number> {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const summary = await runIngestion();
   console.log(JSON.stringify(summary, null, 2));
+  // getDb()'s connection pool otherwise keeps the event loop alive forever;
+  // this CLI entrypoint is the only caller that should ever close it (the
+  // cron route imports runIngestion() directly and relies on the pool
+  // surviving across warm invocations, so it must never hit this line).
+  await closeDb();
 }
