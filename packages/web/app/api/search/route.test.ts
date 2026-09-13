@@ -20,6 +20,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
   });
 
   afterEach(async () => {
+    await sql`delete from postings`;
     await sql`delete from sessions`;
     await sql`delete from users`;
   });
@@ -29,7 +30,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
   });
 
   async function signedInCookie(): Promise<string> {
-    const user = await authDb.createUser('a@example.com', 'hashed-password');
+    const user = await authDb.createUser(`${crypto.randomUUID()}@example.com`, 'hashed-password');
     const token = await authDb.createSession(user.id);
     const sealed = await sealSession({ token });
     return sessionCookieHeader(sealed).split(';')[0]!;
@@ -40,9 +41,51 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
     expect(response.status).toBe(401);
   });
 
-  it('returns 501 when signed in', async () => {
+  it('returns all postings, newest first, with no body', async () => {
     const cookie = await signedInCookie();
+    await sql`insert into postings (title, company, url, source, posted_at) values ('Staff Engineer', 'Acme', 'https://example.com/jobs/search-1', 'seed', '2026-09-01T00:00:00Z')`;
+
     const response = await POST(new Request('http://localhost/api/search', { method: 'POST', headers: { cookie } }));
-    expect(response.status).toBe(501);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.rows).toHaveLength(1);
+    expect(body.rows[0].title).toBe('Staff Engineer');
+    expect(body).not.toHaveProperty('interpretation');
+  });
+
+  it('filters by q, ignoring an unjudged flag it does not yet act on', async () => {
+    const cookie = await signedInCookie();
+    await sql`insert into postings (title, company, url, source) values ('Staff Backend Engineer', 'Acme', 'https://example.com/jobs/search-2', 'seed')`;
+    await sql`insert into postings (title, company, url, source) values ('Marketing Manager', 'Acme', 'https://example.com/jobs/search-3', 'seed')`;
+
+    const response = await POST(
+      new Request('http://localhost/api/search', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: 'backend engineer', unjudged: true }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(body.rows).toHaveLength(1);
+    expect(body.rows[0].title).toBe('Staff Backend Engineer');
+  });
+
+  it('treats a malformed JSON body as no filters rather than a 400', async () => {
+    const cookie = await signedInCookie();
+    await sql`insert into postings (title, company, url, source) values ('Staff Engineer', 'Acme', 'https://example.com/jobs/search-4', 'seed')`;
+
+    const response = await POST(
+      new Request('http://localhost/api/search', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: 'not json',
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.rows).toHaveLength(1);
   });
 });
