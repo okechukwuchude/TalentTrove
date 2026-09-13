@@ -35,9 +35,24 @@ function encodeCursor(sortKey: string, id: string): string {
 
 function decodeCursor(cursor: string): { sortKey: string; id: string } | null {
   try {
-    const [sortKey, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
-    if (!sortKey || !id) return null;
-    return { sortKey, id };
+    // NOTE (fix, post-review): the sort-key half of the cursor is legitimately
+    // the empty string when the last row on a page has a NULL `posted_at` (see
+    // `encodeCursor`'s call site below) — `posted_at desc nulls last` means
+    // rows with no posted date are real, expected results, not an edge case.
+    // The original version validated the decoded cursor by JS truthiness
+    // (`!sortKey || !id`), which treats a validly-encoded empty sort-key as
+    // malformed input and silently truncates pagination right at that
+    // boundary (page N+1 comes back empty with `cursor: null` even though
+    // there are more, all-null-`posted_at`, rows left). Validate by *shape*
+    // instead — the encoding always produces exactly one `|` separator, so
+    // `split('|')` must produce exactly two parts — and only require the `id`
+    // half to be non-empty (a posting id is always a non-empty uuid; the
+    // sort-key half is allowed to be empty).
+    const parts = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
+    if (parts.length !== 2) return null;
+    const [sortKey, id] = parts;
+    if (!id) return null;
+    return { sortKey: sortKey!, id };
   } catch {
     return null;
   }
@@ -92,7 +107,16 @@ export async function searchPostings(
     // Using the typed `gte()` helper instead routes the value through the
     // column's encoder (Date -> ISO string) before it ever becomes a bind
     // parameter, so this fixes a real runtime crash, not a style nit.
-    conditions.push(gte(postings.postedAt, new Date(filters.postedAfter)));
+    //
+    // A malformed `postedAfter` string (`new Date(...)` producing an
+    // Invalid Date) is guarded here rather than left to throw — the value
+    // ultimately comes from an HTTP query param (wired up in a later task),
+    // so treating "can't parse this as a date" as "no filter" is cheap and
+    // safe; it is not a substitute for proper request validation upstream.
+    const postedAfterDate = new Date(filters.postedAfter);
+    if (!Number.isNaN(postedAfterDate.getTime())) {
+      conditions.push(gte(postings.postedAt, postedAfterDate));
+    }
   }
   if (filters.company && filters.company.length > 0) {
     // NOTE (deviation from brief): the brief's version interpolated the
@@ -119,6 +143,21 @@ export async function searchPostings(
       conditions.push(
         or(sql`${rankExpr} < ${decodedRank}`, and(sql`${rankExpr} = ${decodedRank}`, gt(postings.id, decoded.id))!)!,
       );
+    } else if (decoded.sortKey === '') {
+      // NOTE (fix, post-review): the previous page's last row had a NULL
+      // `posted_at` (encoded as the empty-string sentinel — see
+      // `encodeCursor`'s call site below). Because the ordering is
+      // `posted_at desc nulls last`, every NULL-dated row sorts strictly
+      // after every non-NULL-dated row — so once a page's last row is NULL,
+      // every row that came before it in the full ordering (all non-NULL
+      // rows, plus any NULL rows already returned) has necessarily already
+      // been returned on this or an earlier page. The remaining rows are
+      // exactly the other NULL-dated rows, tie-broken by `id` ascending like
+      // every other page. (`new Date('')` is an Invalid Date — feeding it to
+      // `lt`/`eq` below would either crash or silently match nothing, so
+      // this case must be handled separately rather than falling into the
+      // generic branch.)
+      conditions.push(and(isNull(postings.postedAt), gt(postings.id, decoded.id))!);
     } else {
       const decodedDate = new Date(decoded.sortKey);
       // NOTE (deviation from brief): same raw-Date-in-`sql`-template bug as

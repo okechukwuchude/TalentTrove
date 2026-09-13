@@ -120,6 +120,46 @@ describe.skipIf(!testDatabaseUrl)('postings-search', () => {
     expect(seenUrls.sort()).toEqual([...urls].sort()); // no gaps either
   });
 
+  it('paginates across a null-posted_at boundary in no-search-words mode', async () => {
+    // Regression test for the reviewed bug: `posted_at desc nulls last`
+    // means NULL-dated postings are real, expected results (a source that
+    // never reported a posted date), and they sort after every dated
+    // posting. When a page's *last* row has a NULL `posted_at`, the cursor
+    // encodes its sort-key half as `''`. Before the fix, `decodeCursor`
+    // rejected that cursor by JS truthiness (`!sortKey`) instead of by
+    // shape, so the *following* page came back empty with `cursor: null`
+    // instead of the remaining NULL-dated rows — silently truncating
+    // pagination. With `limit: 1` this reproduces the exact boundary: page 1
+    // ends on the one dated row, page 2 ends on the first NULL row (this is
+    // the cursor that used to be misread as malformed), and page 3 must
+    // still return the second NULL row rather than an empty page.
+    await insertPosting({ title: 'Dated', postedAt: '2026-09-02T00:00:00Z' });
+    await sql`
+      insert into postings (title, company, country, workplace, employment, posted_at, url, source)
+      values ('Null A', 'Acme', 'United States', 'remote', 'full-time', null, ${`https://example.com/jobs/${crypto.randomUUID()}`}, 'seed')
+    `;
+    await sql`
+      insert into postings (title, company, country, workplace, employment, posted_at, url, source)
+      values ('Null B', 'Acme', 'United States', 'remote', 'full-time', null, ${`https://example.com/jobs/${crypto.randomUUID()}`}, 'seed')
+    `;
+
+    const firstPage = await searchPostings({}, 1, null);
+    expect(firstPage.rows.map((row) => row.title)).toEqual(['Dated']);
+    expect(firstPage.cursor).toBeTruthy();
+
+    const secondPage = await searchPostings({}, 1, firstPage.cursor);
+    expect(secondPage.rows).toHaveLength(1);
+    expect(['Null A', 'Null B']).toContain(secondPage.rows[0]!.title);
+    expect(secondPage.cursor).toBeTruthy(); // one more NULL row remains
+
+    const thirdPage = await searchPostings({}, 1, secondPage.cursor);
+    expect(thirdPage.rows).toHaveLength(1); // must not be empty — this is the bug
+    expect(thirdPage.cursor).toBeNull();
+
+    const nullTitlesSeen = [secondPage.rows[0]!.title, thirdPage.rows[0]!.title].sort();
+    expect(nullTitlesSeen).toEqual(['Null A', 'Null B']);
+  });
+
   it('searchCompanies groups by company, counts postings, and requires at least 2 characters', async () => {
     await insertPosting({ company: 'Acme Corp' });
     await insertPosting({ company: 'Acme Corp' });
