@@ -34,10 +34,20 @@ export async function runIngestion(adapters: IngestionAdapter[] = DEFAULT_ADAPTE
 
 async function upsertPostings(raw: RawPosting[]): Promise<number> {
   if (raw.length === 0) return 0;
+  // An adapter can hand us the same url twice in one batch (e.g. jsearch.ts
+  // and adzuna.ts both loop over multiple search queries — and, for Adzuna,
+  // multiple countries — accumulating results into one flat array before
+  // this call; the same posting matching two search terms in one run is the
+  // normal case for an aggregator API). Postgres rejects an INSERT ... ON
+  // CONFLICT DO UPDATE that targets the same conflict column twice in a
+  // single statement ("ON CONFLICT DO UPDATE command cannot affect row a
+  // second time"), so dedupe by url before building the insert. Last
+  // occurrence wins, consistent with ON CONFLICT DO UPDATE's own semantics.
+  const deduped = [...new Map(raw.map((posting) => [posting.url, posting])).values()];
   const rows = await getDb()
     .insert(postings)
     .values(
-      raw.map((posting) => ({
+      deduped.map((posting) => ({
         title: posting.title,
         company: posting.company,
         locations: posting.locations && posting.locations.length > 0 ? posting.locations : null,

@@ -47,6 +47,33 @@ describe.skipIf(!testDatabaseUrl)('runIngestion', () => {
     expect(Number(rows[0]!.count)).toBe(1);
   });
 
+  it('dedupes duplicate urls within a single adapter batch, last one winning', async () => {
+    const duplicated = {
+      name: 'aggregator',
+      fetchPostings: async () => [
+        {
+          title: 'First Match',
+          company: 'Acme',
+          url: 'https://example.com/jobs/run-ingestion-dup',
+          source: 'aggregator',
+        },
+        {
+          title: 'Second Match',
+          company: 'Acme',
+          url: 'https://example.com/jobs/run-ingestion-dup',
+          source: 'aggregator',
+        },
+      ],
+    };
+
+    const summary = await runIngestion([duplicated]);
+
+    expect(summary).toEqual([{ source: 'aggregator', fetched: 2, upserted: 1, failed: null }]);
+    const rows = await sql<{ title: string }[]>`select title from postings where url = 'https://example.com/jobs/run-ingestion-dup'`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.title).toBe('Second Match');
+  });
+
   it('upserts an existing url in place instead of duplicating it', async () => {
     const first = {
       name: 'source',
