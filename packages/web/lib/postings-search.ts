@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, gte, ilike, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { getDb } from './db.ts';
-import { postings, judgments } from '../db/schema.ts';
+import { postings, judgments, tailoredResumes } from '../db/schema.ts';
 import { normalizeCountry } from './ingestion/shared.ts';
 import type { PostingJson } from './tabs-db.ts';
 
@@ -18,7 +18,11 @@ export type CompanyRow = { id: string; name: string; posting_count: number };
 
 type PostingRow = typeof postings.$inferSelect;
 
-function toPostingJson(row: PostingRow, judgment?: { verdict: string; reasoning: string }): PostingJson {
+function toPostingJson(
+  row: PostingRow,
+  judgment?: { verdict: string; reasoning: string },
+  hasTailoredResume?: boolean,
+): PostingJson {
   return {
     id: row.id,
     title: row.title,
@@ -29,6 +33,7 @@ function toPostingJson(row: PostingRow, judgment?: { verdict: string; reasoning:
     posted_at: row.postedAt ? row.postedAt.toISOString() : null,
     url: row.url,
     ...(judgment ? { verdict: judgment.verdict, verdict_reasoning: judgment.reasoning } : {}),
+    ...(hasTailoredResume ? { has_tailored_resume: true } : {}),
   };
 }
 
@@ -199,9 +204,16 @@ export async function searchPostings(
   }
 
   const fetched = await getDb()
-    .select({ row: postings, rank: rankExpr, verdict: judgments.verdict, reasoning: judgments.reasoning })
+    .select({
+      row: postings,
+      rank: rankExpr,
+      verdict: judgments.verdict,
+      reasoning: judgments.reasoning,
+      tailoredResumeId: tailoredResumes.id,
+    })
     .from(postings)
     .leftJoin(judgments, and(eq(judgments.postingId, postings.id), eq(judgments.userId, userId)))
+    .leftJoin(tailoredResumes, and(eq(tailoredResumes.postingId, postings.id), eq(tailoredResumes.userId, userId)))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(
       hasQuery ? desc(rankExpr) : sql`${postings.postedAt} desc nulls last`,
@@ -213,7 +225,11 @@ export async function searchPostings(
   const page = hasMore ? fetched.slice(0, limit) : fetched;
 
   const rows = page.map((entry) =>
-    toPostingJson(entry.row, entry.verdict ? { verdict: entry.verdict, reasoning: entry.reasoning! } : undefined),
+    toPostingJson(
+      entry.row,
+      entry.verdict ? { verdict: entry.verdict, reasoning: entry.reasoning! } : undefined,
+      Boolean(entry.tailoredResumeId),
+    ),
   );
   const last = page[page.length - 1];
   const nextCursor =

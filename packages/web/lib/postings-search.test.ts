@@ -19,6 +19,7 @@ describe.skipIf(!testDatabaseUrl)('postings-search', () => {
   });
 
   afterEach(async () => {
+    await sql`delete from tailored_resumes`;
     await sql`delete from judgments`;
     await sql`delete from postings`;
     await sql`delete from users`;
@@ -151,6 +152,24 @@ describe.skipIf(!testDatabaseUrl)('postings-search', () => {
     const result = await searchPostings(userId, { unjudged: true }, 20, null);
 
     expect(result.rows.map((row) => row.title)).toEqual(['Unjudged']);
+  });
+
+  it('includes has_tailored_resume: true only for a posting with a stored tailored resume for this user', async () => {
+    const userId = await freshUserId();
+    await insertPosting({ title: 'Tailored', url: 'https://example.com/jobs/tailored-1' });
+    await insertPosting({ title: 'Not tailored', url: 'https://example.com/jobs/not-tailored-1' });
+    const tailoredId = (await sql<{ id: string }[]>`select id from postings where title = 'Tailored'`)[0]!.id;
+    await sql`
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
+      values (${userId}, ${tailoredId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+    `;
+
+    const result = await searchPostings(userId, {}, 20, null);
+
+    const tailoredRow = result.rows.find((row) => row.title === 'Tailored');
+    const otherRow = result.rows.find((row) => row.title === 'Not tailored');
+    expect(tailoredRow?.has_tailored_resume).toBe(true);
+    expect(otherRow?.has_tailored_resume).toBeUndefined();
   });
 
   it('paginates with a cursor, no-search-words mode', async () => {

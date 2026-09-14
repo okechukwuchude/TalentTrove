@@ -18,6 +18,7 @@ describe.skipIf(!testDatabaseUrl)('tabs-db', () => {
   });
 
   afterEach(async () => {
+    await sql`delete from tailored_resumes`;
     await sql`delete from judgments`;
     await sql`delete from tab_items`;
     await sql`delete from postings`;
@@ -138,6 +139,22 @@ describe.skipIf(!testDatabaseUrl)('tabs-db', () => {
 
     expect(page!.rows[0]!.verdict).toBe('fair');
     expect(page!.rows[0]!.verdict_reasoning).toBe('Reasonable match.');
+  });
+
+  it('getTabContents includes has_tailored_resume: true when a tailored resume exists for the caller', async () => {
+    const userId = await freshUserId();
+    const postingId = await insertPosting({ title: 'Tailored Posting' });
+    await tabsDb.createTab(userId, 'shortlist', null);
+    const tab = await tabsDb.findTabByName(userId, 'shortlist');
+    await tabsDb.addPostingsToTab(userId, tab!.id, [postingId]);
+    await sql`
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
+      values (${userId}, ${postingId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+    `;
+
+    const page = await tabsDb.getTabContents(userId, tab!.id, 20, null);
+
+    expect(page!.rows[0]!.has_tailored_resume).toBe(true);
   });
 
   it('getTabContents paginates with a cursor', async () => {

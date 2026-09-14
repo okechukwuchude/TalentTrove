@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import { getDb } from './db.ts';
-import { postings, tabItems, tabs, judgments } from '../db/schema.ts';
+import { postings, tabItems, tabs, judgments, tailoredResumes } from '../db/schema.ts';
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -18,6 +18,7 @@ export type PostingJson = {
   item_id?: string;
   verdict?: string;
   verdict_reasoning?: string;
+  has_tailored_resume?: boolean;
 };
 
 type PostingRow = typeof postings.$inferSelect;
@@ -40,6 +41,7 @@ function toPostingJson(
   row: PostingRow,
   itemId?: string,
   judgment?: { verdict: string; reasoning: string },
+  hasTailoredResume?: boolean,
 ): PostingJson {
   return {
     id: row.id,
@@ -52,6 +54,7 @@ function toPostingJson(
     url: row.url,
     ...(itemId ? { item_id: itemId } : {}),
     ...(judgment ? { verdict: judgment.verdict, verdict_reasoning: judgment.reasoning } : {}),
+    ...(hasTailoredResume ? { has_tailored_resume: true } : {}),
   };
 }
 
@@ -154,10 +157,12 @@ export async function getTabContents(
       posting: postings,
       verdict: judgments.verdict,
       reasoning: judgments.reasoning,
+      tailoredResumeId: tailoredResumes.id,
     })
     .from(tabItems)
     .leftJoin(postings, eq(postings.id, tabItems.postingId))
     .leftJoin(judgments, and(eq(judgments.postingId, tabItems.postingId), eq(judgments.userId, userId)))
+    .leftJoin(tailoredResumes, and(eq(tailoredResumes.postingId, tabItems.postingId), eq(tailoredResumes.userId, userId)))
     .where(and(...conditions))
     .orderBy(asc(tabItems.addedAt), asc(tabItems.id))
     .limit(limit + 1);
@@ -170,7 +175,12 @@ export async function getTabContents(
   for (const row of page) {
     if (row.posting) {
       rows.push(
-        toPostingJson(row.posting, row.itemId, row.verdict ? { verdict: row.verdict, reasoning: row.reasoning! } : undefined),
+        toPostingJson(
+          row.posting,
+          row.itemId,
+          row.verdict ? { verdict: row.verdict, reasoning: row.reasoning! } : undefined,
+          Boolean(row.tailoredResumeId),
+        ),
       );
     } else {
       noLongerPresent.push({ postingId: row.postingId, itemId: row.itemId });
