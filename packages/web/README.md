@@ -62,6 +62,38 @@ Ingestion runs two ways:
   needs no API key and is the fastest way to get real postings into a
   local database.
 
+## Configuring judging
+
+Once postings exist, `judgments` gets populated by a scheduled pipeline
+(`lib/judging/run-judging.ts`) that screens each account's not-yet-judged
+postings against their stored profile (`constraints`/`background`/
+`preferences`/`resume`, plus any custom documents) via
+[OpenRouter](https://openrouter.ai/), using whichever model you name.
+
+- `OPENROUTER_API_KEY` — an API key from your OpenRouter account.
+- `JUDGE_MODEL` — the exact model string to call, e.g.
+  `anthropic/claude-sonnet-4.5`. Any model OpenRouter serves that supports
+  tool calling works; see [openrouter.ai/models](https://openrouter.ai/models).
+- `JUDGE_BATCH_SIZE` — optional, defaults to 25. The most postings judged
+  per account in one scheduled run; the rest are picked up next time.
+
+Both `OPENROUTER_API_KEY` and `JUDGE_MODEL` are required for judging to do
+anything — with either unset, `GET /api/cron/judge-postings` and
+`npm run db:judge` both return immediately with no database or network
+call, the same way an unconfigured postings-ingestion source does.
+
+Judging runs two ways, mirroring ingestion:
+
+- **Scheduled**, via `GET /api/cron/judge-postings`, which Vercel Cron
+  calls per `vercel.json`'s schedule (every 6 hours, offset an hour after
+  ingestion). This route requires `CRON_SECRET` (shared with the
+  ingestion cron route) — without it, every call is refused with `401`.
+- **Manually**, via `npm run db:judge -w packages/web`, against whatever
+  `DATABASE_URL` is set to.
+
+An account with none of `constraints`/`background`/`preferences`/`resume`
+stored is skipped entirely — there's nothing to judge a posting against.
+
 ## Running the database-backed tests
 
 Most of this app's tests run without a database at all. Everything under
