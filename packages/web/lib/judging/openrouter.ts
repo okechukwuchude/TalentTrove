@@ -47,27 +47,38 @@ export async function callJudgeModel(apiKey: string, request: JudgeRequest): Pro
     return { error: `openrouter request failed with ${response.status}` };
   }
 
-  const body = (await response.json()) as {
-    choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[];
-  };
+  let body: { choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[] };
+  try {
+    body = (await response.json()) as {
+      choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[];
+    };
+  } catch {
+    return { error: 'openrouter response was not valid JSON' };
+  }
+
   const toolCall = body.choices?.[0]?.message?.tool_calls?.find((call) => call.function?.name === 'submit_verdict');
   if (!toolCall?.function?.arguments) {
     return { error: 'model did not call submit_verdict' };
   }
 
-  let parsed: { verdict?: unknown; reasoning?: unknown };
+  let parsed: unknown;
   try {
     parsed = JSON.parse(toolCall.function.arguments);
   } catch {
     return { error: 'submit_verdict arguments were not valid JSON' };
   }
 
-  if (typeof parsed.verdict !== 'string' || !(VERDICTS as readonly string[]).includes(parsed.verdict)) {
-    return { error: `model returned an invalid verdict: ${String(parsed.verdict)}` };
+  if (typeof parsed !== 'object' || parsed === null) {
+    return { error: 'submit_verdict arguments did not return an object' };
   }
-  if (typeof parsed.reasoning !== 'string' || parsed.reasoning.trim() === '') {
+
+  const parsedObj = parsed as { verdict?: unknown; reasoning?: unknown };
+  if (typeof parsedObj.verdict !== 'string' || !(VERDICTS as readonly string[]).includes(parsedObj.verdict)) {
+    return { error: `model returned an invalid verdict: ${String(parsedObj.verdict)}` };
+  }
+  if (typeof parsedObj.reasoning !== 'string' || parsedObj.reasoning.trim() === '') {
     return { error: 'model returned no reasoning' };
   }
 
-  return { verdict: parsed.verdict as Verdict, reasoning: parsed.reasoning };
+  return { verdict: parsedObj.verdict as Verdict, reasoning: parsedObj.reasoning };
 }

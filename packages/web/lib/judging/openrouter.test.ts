@@ -50,4 +50,32 @@ describe('callJudgeModel', () => {
 
     expect(result).toEqual({ error: 'model returned an invalid verdict: maybe' });
   });
+
+  it('returns an error when the HTTP response body is not valid JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError('Unexpected end of JSON input');
+      },
+    }));
+
+    const result = await callJudgeModel('key', REQUEST);
+
+    expect(result).toEqual({ error: 'openrouter response was not valid JSON' });
+  });
+
+  it('returns an error when submit_verdict arguments is null', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          { message: { tool_calls: [{ function: { name: 'submit_verdict', arguments: 'null' } }] } },
+        ],
+      }),
+    }));
+
+    const result = await callJudgeModel('key', REQUEST);
+
+    expect(result).toEqual({ error: 'submit_verdict arguments did not return an object' });
+  });
 });
