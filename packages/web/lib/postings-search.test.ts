@@ -172,6 +172,21 @@ describe.skipIf(!testDatabaseUrl)('postings-search', () => {
     expect(otherRow?.has_tailored_resume).toBeUndefined();
   });
 
+  it("scopes has_tailored_resume to the calling user — another user's tailored resume does not show up", async () => {
+    const userId = await freshUserId();
+    const otherUserId = await freshUserId();
+    await insertPosting({ title: 'Match' });
+    const postingId = (await sql<{ id: string }[]>`select id from postings where title = 'Match'`)[0]!.id;
+    await sql`
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
+      values (${otherUserId}, ${postingId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+    `;
+
+    const result = await searchPostings(userId, {}, 20, null);
+
+    expect(result.rows[0]!.has_tailored_resume).toBeUndefined();
+  });
+
   it('paginates with a cursor, no-search-words mode', async () => {
     const userId = await freshUserId();
     await insertPosting({ title: 'A', postedAt: '2026-09-01T00:00:00Z' });
