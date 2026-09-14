@@ -7,7 +7,7 @@ import { judgments, postings, profileDocuments, tailoredResumes, users } from '.
 import { extractStyleProfile, tailorResumeContent, type StyleProfile } from './openrouter.ts';
 import { TailoredResumeDocument } from './resume-template.tsx';
 import { parseResumePdf } from '../pdf.ts';
-import { JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES } from '@pinloop/shared';
+import { JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES, VERDICTS, rankOf } from '@pinloop/shared';
 
 export type TailoringSummary = { userId: string; tailored: number; failed: number };
 
@@ -15,6 +15,16 @@ type ProfileDocRow = typeof profileDocuments.$inferSelect;
 type PostingRow = typeof postings.$inferSelect;
 
 const DEFAULT_BATCH_SIZE = 25;
+
+/**
+ * The lowest verdict a judgment can carry and still be worth tailoring a
+ * resume for. Derived from the shared four-word scale (`@pinloop/shared`'s
+ * `VERDICTS`) rather than spelled out as a literal array here, so this file
+ * never has its own opinion about what the words are or their order — see
+ * `packages/shared/src/verdicts.ts` for why that matters.
+ */
+const TAILOR_MIN_VERDICT = 'fair';
+const TAILOR_VERDICTS = VERDICTS.filter((verdict) => rankOf(verdict) >= rankOf(TAILOR_MIN_VERDICT));
 
 /**
  * Resume is excluded here (unlike run-judging.ts's buildProfileText, which
@@ -88,7 +98,7 @@ export async function runTailoring(
           and(
             eq(judgments.postingId, postings.id),
             eq(judgments.userId, account.id),
-            inArray(judgments.verdict, ['strong', 'fair']),
+            inArray(judgments.verdict, TAILOR_VERDICTS),
           ),
         )
         .leftJoin(tailoredResumes, and(eq(tailoredResumes.postingId, postings.id), eq(tailoredResumes.userId, account.id)))
@@ -98,6 +108,12 @@ export async function runTailoring(
       if (candidates.length === 0) continue;
 
       const resumeText = (await parseResumePdf(resumeDoc.fileBytes)).text;
+      // A resume row with bytes isn't enough: a scanned/image-only PDF parses
+      // cleanly to empty text (see lib/pdf.ts's NO_TEXT_NOTE). Extracting a
+      // "contact block" from nothing means the model invents one — and that
+      // invention is cached on style_profile and stamped on every tailored
+      // PDF from then on, since re-tailoring is out of scope.
+      if (!resumeText.trim()) continue;
 
       let styleProfile: StyleProfile;
       if (resumeDoc.styleProfile) {
@@ -106,6 +122,7 @@ export async function runTailoring(
         const extracted = await callStyleExtraction(apiKey, model, resumeText);
         if ('error' in extracted) {
           console.error(`tailor: user ${account.id} style extraction failed: ${extracted.error}`);
+          summaries.push({ userId: account.id, tailored: 0, failed: candidates.length });
           continue;
         }
         styleProfile = extracted;

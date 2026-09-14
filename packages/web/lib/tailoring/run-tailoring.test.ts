@@ -33,6 +33,33 @@ startxref
   'latin1',
 );
 
+// A valid, single-page PDF with a zero-length content stream: it parses
+// cleanly but has no extractable text at all, same fixture shape as
+// lib/pdf.test.ts's PDF_WITH_NO_TEXT (a scanned/image-only resume upload
+// produces exactly this).
+const RESUME_PDF_NO_TEXT = Buffer.from(
+  `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/Resources<<>>/MediaBox[0 0 200 200]/Contents 4 0 R>>endobj
+4 0 obj<</Length 0>>
+stream
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f
+0000000009 00000 n
+0000000052 00000 n
+0000000101 00000 n
+0000000193 00000 n
+trailer<</Size 5/Root 1 0 R>>
+startxref
+238
+%%EOF`,
+  'latin1',
+);
+
 const STYLE_PROFILE = {
   sectionOrder: ['summary', 'experience'],
   contact: { name: 'Jane Doe', email: 'jane@example.com' },
@@ -139,6 +166,58 @@ describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
 
     expect(styleCalls).toBe(0);
     expect(summary.find((row) => row.userId === userId)).toBeUndefined();
+  });
+
+  it('skips an account whose resume PDF has no extractable text, without calling extractStyleProfile', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertFileDocument(userId, 'resume', RESUME_PDF_NO_TEXT, 'resume.pdf');
+    const postingId = await insertPosting();
+    await insertJudgment(userId, postingId, 'strong');
+    let styleCalls = 0;
+
+    const summary = await runTailoring(async () => {
+      styleCalls += 1;
+      return STYLE_PROFILE;
+    }, alwaysTailor);
+
+    expect(styleCalls).toBe(0);
+    expect(summary.find((row) => row.userId === userId)).toBeUndefined();
+  });
+
+  it('excludes candidates judged below fair (weak/no), tailoring only the strong one', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertFileDocument(userId, 'resume', RESUME_PDF, 'resume.pdf');
+    const strongPosting = await insertPosting('Strong match');
+    const weakPosting = await insertPosting('Weak match');
+    await insertJudgment(userId, strongPosting, 'strong');
+    await insertJudgment(userId, weakPosting, 'weak');
+
+    const summary = await runTailoring(alwaysStyle, alwaysTailor);
+
+    expect(summary).toEqual([{ userId, tailored: 1, failed: 0 }]);
+    const rows = await sql`select posting_id from tailored_resumes where user_id = ${userId}`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.posting_id).toBe(strongPosting);
+  });
+
+  it('records a summary entry with failed = candidate count when style extraction fails', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertFileDocument(userId, 'resume', RESUME_PDF, 'resume.pdf');
+    const postingA = await insertPosting('A');
+    const postingB = await insertPosting('B');
+    await insertJudgment(userId, postingA, 'strong');
+    await insertJudgment(userId, postingB, 'fair');
+    let tailorCalls = 0;
+
+    const summary = await runTailoring(async () => ({ error: 'boom' }), async () => {
+      tailorCalls += 1;
+      return TAILORED_CONTENT;
+    });
+
+    expect(tailorCalls).toBe(0);
+    expect(summary).toEqual([{ userId, tailored: 0, failed: 2 }]);
+    const rows = await sql`select * from tailored_resumes where user_id = ${userId}`;
+    expect(rows).toHaveLength(0);
   });
 
   it('computes the style profile once and reuses it across multiple candidates and across runs', async () => {

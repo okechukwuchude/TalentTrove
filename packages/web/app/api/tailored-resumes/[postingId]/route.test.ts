@@ -52,6 +52,15 @@ describe.skipIf(!testDatabaseUrl)('/api/tailored-resumes/[postingId]', () => {
     expect(response.status).toBe(401);
   });
 
+  it('returns 404 (not 500) when postingId is not a valid uuid', async () => {
+    const { cookie } = await signedInUser();
+    const response = await route.GET(
+      new Request('http://localhost/api/tailored-resumes/not-a-uuid', { headers: { cookie } }),
+      { params: Promise.resolve({ postingId: 'not-a-uuid' }) },
+    );
+    expect(response.status).toBe(404);
+  });
+
   it('returns 404 when no tailored resume exists for this posting', async () => {
     const { cookie } = await signedInUser();
     const postingId = await insertPosting();
