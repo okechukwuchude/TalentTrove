@@ -11,7 +11,6 @@ export type JudgingSummary = { userId: string; judged: number; failed: number };
 type ProfileDocRow = typeof profileDocuments.$inferSelect;
 type PostingRow = typeof postings.$inferSelect;
 
-const PROFILE_SUBSTANCE_NAMES = ['constraints', 'background', 'preferences', 'resume'];
 const DEFAULT_BATCH_SIZE = 25;
 
 /**
@@ -57,7 +56,7 @@ async function buildProfileText(docs: ProfileDocRow[]): Promise<string> {
       continue;
     }
     if (PROFILE_TEXT_SKIP_NAMES.has(doc.name)) continue;
-    if (doc.textContent) sections.push(`${doc.name}:\n${doc.textContent}`);
+    if (doc.textContent && doc.textContent.trim()) sections.push(`${doc.name}:\n${doc.textContent}`);
   }
   return sections.join('\n\n');
 }
@@ -90,8 +89,13 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
   for (const account of accounts) {
     try {
       const docs = await getDb().select().from(profileDocuments).where(eq(profileDocuments.userId, account.id));
-      const hasSubstance = docs.some((doc) => PROFILE_SUBSTANCE_NAMES.includes(doc.name));
-      if (!hasSubstance) continue;
+      const profileText = await buildProfileText(docs);
+      // A row existing under a substance name isn't enough — an empty
+      // background string or a resume PDF with no extractable text both
+      // produce no real profileText, and judging against nothing produces a
+      // verdict with no basis (and, since re-judging is out of scope, that
+      // bad verdict is permanent). Gate on the text actually having content.
+      if (!profileText.trim()) continue;
 
       const candidates = await getDb()
         .select({ posting: postings })
@@ -103,7 +107,6 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
       if (candidates.length === 0) continue;
 
       const systemPrompt = resolveJudgePrompt(docs);
-      const profileText = await buildProfileText(docs);
 
       let judged = 0;
       let failed = 0;

@@ -68,6 +68,23 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     expect(rows).toHaveLength(0);
   });
 
+  it('skips a user whose only profile-substance document is empty/whitespace-only, without calling the model', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', '   ');
+    await insertPosting();
+    let called = false;
+
+    const summary = await runJudging(async () => {
+      called = true;
+      return { verdict: 'strong', reasoning: 'x' };
+    });
+
+    expect(called).toBe(false);
+    expect(summary.find((row) => row.userId === userId)).toBeUndefined();
+    const rows = await sql`select * from judgments`;
+    expect(rows).toHaveLength(0);
+  });
+
   it('does not re-judge a posting that already has a judgment for this user', async () => {
     const userId = await freshUserId();
     await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
