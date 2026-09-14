@@ -30,7 +30,7 @@ export function PostingCard({ posting, actions }: { posting: Posting; actions?: 
           <div className="basis-full">
             <Badge variant="outline">{posting.verdict}</Badge>
             {posting.verdict_reasoning && (
-              <p className="mt-1 text-sm text-muted-foreground">{posting.verdict_reasoning}</p>
+              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{posting.verdict_reasoning}</p>
             )}
           </div>
         )}
