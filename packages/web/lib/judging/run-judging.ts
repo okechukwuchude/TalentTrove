@@ -4,7 +4,7 @@ import { closeDb, getDb } from '../db.ts';
 import { judgments, postings, profileDocuments, users } from '../../db/schema.ts';
 import { callJudgeModel } from './openrouter.ts';
 import { parseResumePdf } from '../pdf.ts';
-import { DEFAULT_JUDGE_PROMPT, JUDGE_PROMPT_NAME } from '@pinloop/shared';
+import { DEFAULT_JUDGE_PROMPT, JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES } from '@pinloop/shared';
 
 export type JudgingSummary = { userId: string; judged: number; failed: number };
 
@@ -13,6 +13,21 @@ type PostingRow = typeof postings.$inferSelect;
 
 const PROFILE_SUBSTANCE_NAMES = ['constraints', 'background', 'preferences', 'resume'];
 const DEFAULT_BATCH_SIZE = 25;
+
+/**
+ * Reserved names that must never appear as a labelled document in the text
+ * sent to the model: the judge-prompt names (their text is sent once, as the
+ * instructions, not as profile content — see RESERVED_NAMES' doc comment)
+ * and 'resume' (handled specially above, parsed from its PDF bytes rather
+ * than included as plain text). Derived from RESERVED_NAMES, rather than a
+ * standalone hardcoded list, so this set can only ever name documents the
+ * shared registry actually reserves.
+ */
+const PROFILE_TEXT_SKIP_NAMES: ReadonlySet<string> = new Set(
+  [JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, 'resume'].filter((name) =>
+    Object.prototype.hasOwnProperty.call(RESERVED_NAMES, name),
+  ),
+);
 
 function batchSize(): number {
   const raw = process.env.JUDGE_BATCH_SIZE;
@@ -29,7 +44,6 @@ function resolveJudgePrompt(docs: ProfileDocRow[]): string {
 async function buildProfileText(docs: ProfileDocRow[]): Promise<string> {
   const sections: string[] = [];
   for (const doc of docs) {
-    if (doc.name === JUDGE_PROMPT_NAME) continue;
     if (doc.name === 'resume') {
       if (!doc.fileBytes) continue;
       try {
@@ -42,6 +56,7 @@ async function buildProfileText(docs: ProfileDocRow[]): Promise<string> {
       }
       continue;
     }
+    if (PROFILE_TEXT_SKIP_NAMES.has(doc.name)) continue;
     if (doc.textContent) sections.push(`${doc.name}:\n${doc.textContent}`);
   }
   return sections.join('\n\n');

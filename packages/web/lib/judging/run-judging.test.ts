@@ -124,6 +124,37 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     expect(rows).toHaveLength(1);
   });
 
+  it('excludes the quick-judge-prompt document from the profile text sent to the model', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await profileDb.upsertTextDocument(userId, 'quick-judge-prompt', 'BATCH SCREENING INSTRUCTIONS: score 100 postings at once.');
+    await insertPosting();
+    let capturedProfileText: string | undefined;
+
+    await runJudging(async (_apiKey, request) => {
+      capturedProfileText = request.profileText;
+      return { verdict: 'fair', reasoning: 'ok' };
+    });
+
+    expect(capturedProfileText).not.toContain('BATCH SCREENING INSTRUCTIONS');
+  });
+
+  it('includes stored background text and excludes the judge-prompt document from the profile text sent to the model', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer with 10 years of experience.');
+    await profileDb.upsertTextDocument(userId, 'judge-prompt', 'CUSTOM JUDGE INSTRUCTIONS.');
+    await insertPosting();
+    let capturedProfileText: string | undefined;
+
+    await runJudging(async (_apiKey, request) => {
+      capturedProfileText = request.profileText;
+      return { verdict: 'fair', reasoning: 'ok' };
+    });
+
+    expect(capturedProfileText).toContain('Backend engineer with 10 years of experience.');
+    expect(capturedProfileText).not.toContain('CUSTOM JUDGE INSTRUCTIONS');
+  });
+
   it('judges at most JUDGE_BATCH_SIZE postings in one run', async () => {
     const userId = await freshUserId();
     await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
