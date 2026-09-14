@@ -37,4 +37,13 @@ describe('PostingCard', () => {
     render(<PostingCard posting={posting} actions={<button>Judge</button>} />);
     expect(screen.getByRole('button', { name: 'Judge' })).toBeInTheDocument();
   });
+
+  it('shows a verdict badge and reasoning only when the posting carries one', () => {
+    const { rerender } = render(<PostingCard posting={posting} />);
+    expect(screen.queryByText('strong')).not.toBeInTheDocument();
+
+    rerender(<PostingCard posting={{ ...posting, verdict: 'strong', verdict_reasoning: 'Great fit for this role.' }} />);
+    expect(screen.getByText('strong')).toBeInTheDocument();
+    expect(screen.getByText('Great fit for this role.')).toBeInTheDocument();
+  });
 });

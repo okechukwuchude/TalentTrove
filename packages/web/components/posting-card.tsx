@@ -26,6 +26,14 @@ export function PostingCard({ posting, actions }: { posting: Posting; actions?: 
         {posting.employment && <Badge variant="outline">{posting.employment}</Badge>}
         {postedDate && <span>posted {postedDate}</span>}
         {actions && <div className="ml-auto flex gap-2">{actions}</div>}
+        {posting.verdict && (
+          <div className="basis-full">
+            <Badge variant="outline">{posting.verdict}</Badge>
+            {posting.verdict_reasoning && (
+              <p className="mt-1 text-sm text-muted-foreground">{posting.verdict_reasoning}</p>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

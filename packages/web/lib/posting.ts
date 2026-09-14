@@ -9,6 +9,8 @@ export type Posting = {
   url: string;
   strength?: number;
   item_id?: string;
+  verdict?: string;
+  verdict_reasoning?: string;
 };
 
 export function asPosting(row: Record<string, unknown>): Posting {
@@ -23,5 +25,7 @@ export function asPosting(row: Record<string, unknown>): Posting {
     url: String(row['url'] ?? ''),
     strength: typeof row['strength'] === 'number' ? row['strength'] : undefined,
     item_id: typeof row['item_id'] === 'string' ? row['item_id'] : undefined,
+    verdict: typeof row['verdict'] === 'string' ? row['verdict'] : undefined,
+    verdict_reasoning: typeof row['verdict_reasoning'] === 'string' ? row['verdict_reasoning'] : undefined,
   };
 }
