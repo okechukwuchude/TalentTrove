@@ -20,6 +20,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
   });
 
   afterEach(async () => {
+    await sql`delete from judgments`;
     await sql`delete from postings`;
     await sql`delete from sessions`;
     await sql`delete from users`;
@@ -29,11 +30,11 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
     await sql.end();
   });
 
-  async function signedInCookie(): Promise<string> {
+  async function signedInUser(): Promise<{ userId: string; cookie: string }> {
     const user = await authDb.createUser(`${crypto.randomUUID()}@example.com`, 'hashed-password');
     const token = await authDb.createSession(user.id);
     const sealed = await sealSession({ token });
-    return sessionCookieHeader(sealed).split(';')[0]!;
+    return { userId: user.id, cookie: sessionCookieHeader(sealed).split(';')[0]! };
   }
 
   it('returns 401 when not signed in', async () => {
@@ -42,7 +43,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
   });
 
   it('returns all postings, newest first, with no body', async () => {
-    const cookie = await signedInCookie();
+    const { cookie } = await signedInUser();
     await sql`insert into postings (title, company, url, source, posted_at) values ('Staff Engineer', 'Acme', 'https://example.com/jobs/search-1', 'seed', '2026-09-01T00:00:00Z')`;
 
     const response = await POST(new Request('http://localhost/api/search', { method: 'POST', headers: { cookie } }));
@@ -54,8 +55,8 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
     expect(body).not.toHaveProperty('interpretation');
   });
 
-  it('filters by q, ignoring an unjudged flag it does not yet act on', async () => {
-    const cookie = await signedInCookie();
+  it('filters by q', async () => {
+    const { cookie } = await signedInUser();
     await sql`insert into postings (title, company, url, source) values ('Staff Backend Engineer', 'Acme', 'https://example.com/jobs/search-2', 'seed')`;
     await sql`insert into postings (title, company, url, source) values ('Marketing Manager', 'Acme', 'https://example.com/jobs/search-3', 'seed')`;
 
@@ -63,7 +64,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
       new Request('http://localhost/api/search', {
         method: 'POST',
         headers: { cookie, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: 'backend engineer', unjudged: true }),
+        body: JSON.stringify({ q: 'backend engineer' }),
       }),
     );
     const body = await response.json();
@@ -72,8 +73,30 @@ describe.skipIf(!testDatabaseUrl)('POST /api/search', () => {
     expect(body.rows[0].title).toBe('Staff Backend Engineer');
   });
 
+  it('unjudged: true excludes a posting the caller already judged', async () => {
+    const { userId, cookie } = await signedInUser();
+    await sql`insert into postings (title, company, url, source) values ('Judged', 'Acme', 'https://example.com/jobs/search-5', 'seed')`;
+    await sql`insert into postings (title, company, url, source) values ('Unjudged', 'Acme', 'https://example.com/jobs/search-6', 'seed')`;
+    const judgedId = (await sql<{ id: string }[]>`select id from postings where title = 'Judged'`)[0]!.id;
+    await sql`
+      insert into judgments (user_id, posting_id, verdict, reasoning, model)
+      values (${userId}, ${judgedId}, 'strong', 'Great fit.', 'test/model')
+    `;
+
+    const response = await POST(
+      new Request('http://localhost/api/search', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unjudged: true }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(body.rows.map((row: { title: string }) => row.title)).toEqual(['Unjudged']);
+  });
+
   it('treats a malformed JSON body as no filters rather than a 400', async () => {
-    const cookie = await signedInCookie();
+    const { cookie } = await signedInUser();
     await sql`insert into postings (title, company, url, source) values ('Staff Engineer', 'Acme', 'https://example.com/jobs/search-4', 'seed')`;
 
     const response = await POST(

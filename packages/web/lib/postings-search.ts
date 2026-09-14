@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, gte, ilike, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { getDb } from './db.ts';
-import { postings } from '../db/schema.ts';
+import { postings, judgments } from '../db/schema.ts';
 import { normalizeCountry } from './ingestion/shared.ts';
 import type { PostingJson } from './tabs-db.ts';
 
@@ -11,13 +11,14 @@ export type SearchFilters = {
   employment?: string;
   postedAfter?: string;
   company?: string[];
+  unjudged?: boolean;
 };
 
 export type CompanyRow = { id: string; name: string; posting_count: number };
 
 type PostingRow = typeof postings.$inferSelect;
 
-function toPostingJson(row: PostingRow): PostingJson {
+function toPostingJson(row: PostingRow, judgment?: { verdict: string; reasoning: string }): PostingJson {
   return {
     id: row.id,
     title: row.title,
@@ -27,6 +28,7 @@ function toPostingJson(row: PostingRow): PostingJson {
     ...(row.employment ? { employment: row.employment } : {}),
     posted_at: row.postedAt ? row.postedAt.toISOString() : null,
     url: row.url,
+    ...(judgment ? { verdict: judgment.verdict, verdict_reasoning: judgment.reasoning } : {}),
   };
 }
 
@@ -60,6 +62,7 @@ function decodeCursor(cursor: string): { sortKey: string; id: string } | null {
 }
 
 export async function searchPostings(
+  userId: string,
   filters: SearchFilters,
   limit: number,
   cursor: string | null,
@@ -151,6 +154,9 @@ export async function searchPostings(
     // case and produces correct SQL for one or many values.
     conditions.push(inArray(postings.company, filters.company));
   }
+  if (filters.unjudged) {
+    conditions.push(isNull(judgments.id));
+  }
 
   const decoded = cursor ? decodeCursor(cursor) : null;
   if (cursor && !decoded) return { rows: [], cursor: null };
@@ -193,8 +199,9 @@ export async function searchPostings(
   }
 
   const fetched = await getDb()
-    .select({ row: postings, rank: rankExpr })
+    .select({ row: postings, rank: rankExpr, verdict: judgments.verdict, reasoning: judgments.reasoning })
     .from(postings)
+    .leftJoin(judgments, and(eq(judgments.postingId, postings.id), eq(judgments.userId, userId)))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(
       hasQuery ? desc(rankExpr) : sql`${postings.postedAt} desc nulls last`,
@@ -205,7 +212,9 @@ export async function searchPostings(
   const hasMore = fetched.length > limit;
   const page = hasMore ? fetched.slice(0, limit) : fetched;
 
-  const rows = page.map((entry) => toPostingJson(entry.row));
+  const rows = page.map((entry) =>
+    toPostingJson(entry.row, entry.verdict ? { verdict: entry.verdict, reasoning: entry.reasoning! } : undefined),
+  );
   const last = page[page.length - 1];
   const nextCursor =
     hasMore && last

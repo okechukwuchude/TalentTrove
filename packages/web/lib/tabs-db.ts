@@ -16,6 +16,8 @@ export type PostingJson = {
   posted_at: string | null;
   url: string;
   item_id?: string;
+  verdict?: string;
+  verdict_reasoning?: string;
 };
 
 type PostingRow = typeof postings.$inferSelect;

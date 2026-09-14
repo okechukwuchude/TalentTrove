@@ -25,10 +25,6 @@ export async function POST(request: Request): Promise<Response> {
 
   const body = (await request.json().catch(() => null)) as SearchBody | null;
 
-  // `unjudged` is accepted for wire-compatibility with the existing SearchFilters
-  // UI but has no effect yet: there is no judgments table until judge ships, so
-  // every posting is "unjudged" by definition today. See
-  // docs/superpowers/specs/2026-09-12-postings-search-design.md.
   const filters = {
     q: typeof body?.q === 'string' ? body.q : undefined,
     country: typeof body?.country === 'string' ? body.country : undefined,
@@ -36,11 +32,12 @@ export async function POST(request: Request): Promise<Response> {
     employment: typeof body?.employment === 'string' ? body.employment : undefined,
     postedAfter: typeof body?.posted_after === 'string' ? body.posted_after : undefined,
     company: typeof body?.company === 'string' ? body.company.split(',').filter(Boolean) : undefined,
+    unjudged: body?.unjudged === true,
   };
 
   const limit = parseLimit(body?.limit);
   const cursor = typeof body?.cursor === 'string' ? body.cursor : null;
 
-  const result = await searchPostings(filters, limit, cursor);
+  const result = await searchPostings(auth.user.userId, filters, limit, cursor);
   return Response.json({ rows: result.rows, cursor: result.cursor });
 }
