@@ -105,6 +105,25 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     expect(rows).toHaveLength(1);
   });
 
+  it('keeps judging the rest of the batch when one posting throws instead of returning an error result', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting({ title: 'Will throw' });
+    await insertPosting({ title: 'Will succeed' });
+    let calls = 0;
+
+    const summary = await runJudging(async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('boom');
+      return { verdict: 'fair', reasoning: 'ok' };
+    });
+
+    expect(calls).toBe(2);
+    expect(summary).toEqual([{ userId, judged: 1, failed: 1 }]);
+    const rows = await sql`select * from judgments where user_id = ${userId}`;
+    expect(rows).toHaveLength(1);
+  });
+
   it('judges at most JUDGE_BATCH_SIZE postings in one run', async () => {
     const userId = await freshUserId();
     await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');

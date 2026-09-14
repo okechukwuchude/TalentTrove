@@ -28,20 +28,30 @@ const SUBMIT_VERDICT_TOOL = {
 } as const;
 
 export async function callJudgeModel(apiKey: string, request: JudgeRequest): Promise<JudgeResult> {
-  const response = await fetch(OPENROUTER_ENDPOINT, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(60_000),
-    body: JSON.stringify({
-      model: request.model,
-      messages: [
-        { role: 'system', content: request.systemPrompt },
-        { role: 'user', content: `${request.postingText}\n\n---\n\n${request.profileText}` },
-      ],
-      tools: [SUBMIT_VERDICT_TOOL],
-      tool_choice: { type: 'function', function: { name: 'submit_verdict' } },
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(OPENROUTER_ENDPOINT, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(60_000),
+      body: JSON.stringify({
+        model: request.model,
+        messages: [
+          { role: 'system', content: request.systemPrompt },
+          { role: 'user', content: `${request.postingText}\n\n---\n\n${request.profileText}` },
+        ],
+        tools: [SUBMIT_VERDICT_TOOL],
+        tool_choice: { type: 'function', function: { name: 'submit_verdict' } },
+      }),
+    });
+  } catch (error) {
+    // A network error (DNS, ECONNRESET, TLS) or the AbortSignal.timeout above
+    // firing on a slow model response both surface as a rejected fetch
+    // promise, not an HTTP error status. Without this catch, that rejection
+    // would propagate out of callJudgeModel and abort the whole judging run
+    // over a single posting's slow response.
+    return { error: `openrouter request failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
 
   if (!response.ok) {
     return { error: `openrouter request failed with ${response.status}` };

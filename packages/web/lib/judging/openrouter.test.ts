@@ -64,6 +64,14 @@ describe('callJudgeModel', () => {
     expect(result).toEqual({ error: 'openrouter response was not valid JSON' });
   });
 
+  it('returns an error instead of rejecting when fetch itself throws (network error, timeout abort)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
+
+    const result = await callJudgeModel('key', REQUEST);
+
+    expect(result).toEqual({ error: expect.stringContaining('openrouter request failed') });
+  });
+
   it('returns an error when submit_verdict arguments is null', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,

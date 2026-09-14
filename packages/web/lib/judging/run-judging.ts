@@ -73,42 +73,55 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
   const accounts = await getDb().select({ id: users.id }).from(users);
 
   for (const account of accounts) {
-    const docs = await getDb().select().from(profileDocuments).where(eq(profileDocuments.userId, account.id));
-    const hasSubstance = docs.some((doc) => PROFILE_SUBSTANCE_NAMES.includes(doc.name));
-    if (!hasSubstance) continue;
+    try {
+      const docs = await getDb().select().from(profileDocuments).where(eq(profileDocuments.userId, account.id));
+      const hasSubstance = docs.some((doc) => PROFILE_SUBSTANCE_NAMES.includes(doc.name));
+      if (!hasSubstance) continue;
 
-    const candidates = await getDb()
-      .select({ posting: postings })
-      .from(postings)
-      .leftJoin(judgments, and(eq(judgments.postingId, postings.id), eq(judgments.userId, account.id)))
-      .where(isNull(judgments.id))
-      .orderBy(asc(postings.createdAt))
-      .limit(limit);
-    if (candidates.length === 0) continue;
+      const candidates = await getDb()
+        .select({ posting: postings })
+        .from(postings)
+        .leftJoin(judgments, and(eq(judgments.postingId, postings.id), eq(judgments.userId, account.id)))
+        .where(isNull(judgments.id))
+        .orderBy(asc(postings.createdAt))
+        .limit(limit);
+      if (candidates.length === 0) continue;
 
-    const systemPrompt = resolveJudgePrompt(docs);
-    const profileText = await buildProfileText(docs);
+      const systemPrompt = resolveJudgePrompt(docs);
+      const profileText = await buildProfileText(docs);
 
-    let judged = 0;
-    let failed = 0;
-    for (const { posting } of candidates) {
-      const result = await callModel(apiKey, {
-        model,
-        systemPrompt,
-        postingText: buildPostingText(posting),
-        profileText,
-      });
-      if ('error' in result) {
-        console.error(`judge: user ${account.id} posting ${posting.id} failed: ${result.error}`);
-        failed += 1;
-        continue;
+      let judged = 0;
+      let failed = 0;
+      for (const { posting } of candidates) {
+        try {
+          const result = await callModel(apiKey, {
+            model,
+            systemPrompt,
+            postingText: buildPostingText(posting),
+            profileText,
+          });
+          if ('error' in result) {
+            console.error(`judge: user ${account.id} posting ${posting.id} failed: ${result.error}`);
+            failed += 1;
+            continue;
+          }
+          await getDb()
+            .insert(judgments)
+            .values({ userId: account.id, postingId: posting.id, verdict: result.verdict, reasoning: result.reasoning, model })
+            .onConflictDoNothing();
+          judged += 1;
+        } catch (error) {
+          console.error(`judge: user ${account.id} posting ${posting.id} threw`, error);
+          failed += 1;
+        }
       }
-      await getDb()
-        .insert(judgments)
-        .values({ userId: account.id, postingId: posting.id, verdict: result.verdict, reasoning: result.reasoning, model });
-      judged += 1;
+      summaries.push({ userId: account.id, judged, failed });
+    } catch (error) {
+      // One account's failure (a transient DB error on its candidates query,
+      // a resume that throws in a way buildProfileText's own try/catch
+      // doesn't anticipate) must not abort every other account's run.
+      console.error(`judge: user ${account.id} threw`, error);
     }
-    summaries.push({ userId: account.id, judged, failed });
   }
   return summaries;
 }
