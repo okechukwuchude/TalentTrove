@@ -14,6 +14,54 @@ Environment variables (e.g. in `packages/web/.env.local`):
 - `PASSWORD_RESET_FROM_EMAIL` — optional; defaults to Resend's own test
   sender address if unset.
 
+Postings ingestion needs its own set of variables — see "Configuring
+postings ingestion" below. All of them are optional; the app runs fine
+with none of them set, it just won't have any real postings to search.
+
+## Configuring postings ingestion
+
+`postings` is populated by five independent source adapters
+(`lib/ingestion/*.ts`), each reading its own environment variables. An
+adapter with none of its variables set fetches nothing — this is not an
+error, so you only need to configure the sources you actually want.
+
+- **JSearch** (aggregator, sourced from Google for Jobs — covers Indeed/
+  LinkedIn/Glassdoor listings indirectly): `JSEARCH_API_KEY` (a RapidAPI
+  key for the [JSearch API](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch))
+  and `JSEARCH_QUERIES`, a comma-separated list of search terms, e.g.
+  `JSEARCH_QUERIES=staff software engineer,senior backend engineer`. One
+  request is made per query.
+- **Adzuna** (a second aggregator, different coverage mix):
+  `ADZUNA_APP_ID`/`ADZUNA_APP_KEY` (from
+  [developer.adzuna.com](https://developer.adzuna.com/)), plus
+  `ADZUNA_COUNTRIES` (comma-separated two-letter codes, e.g. `us,gb`) and
+  `ADZUNA_QUERIES` (comma-separated search terms). Queried once per
+  country × query pair.
+- **Greenhouse / Lever / Ashby** (direct from a company's own public job
+  board — no API key needed for any of the three):
+  `GREENHOUSE_COMPANIES`, `LEVER_COMPANIES`, `ASHBY_COMPANIES`. Each is a
+  comma-separated list of `token:Display Name` pairs, where `token` is
+  that ATS's board identifier for the company (visible in the company's
+  own careers-page URL, e.g. `boards.greenhouse.io/stripe` → token
+  `stripe`) and `Display Name` is the human-readable name stored on every
+  posting from that company. The display name may be omitted — the token
+  itself is used verbatim if you leave off the `:Display Name` half, which
+  is usually not what you want since a token is rarely how a company's
+  name should read in search results. Example:
+  `GREENHOUSE_COMPANIES=stripe:Stripe,figma:Figma`.
+
+Ingestion runs two ways:
+
+- **Scheduled**, via `POST /api/cron/ingest-postings`, which Vercel Cron
+  calls on the `vercel.json` schedule (every 6 hours by default). This
+  route requires `CRON_SECRET` to be set — without it, every call is
+  refused with `401`, including Vercel's own.
+- **Manually**, via `npm run db:ingest -w packages/web`, which runs the
+  same ingestion against whatever `DATABASE_URL` is set to. Useful for
+  local testing — see the Greenhouse/Lever/Ashby example above, which
+  needs no API key and is the fastest way to get real postings into a
+  local database.
+
 ## Running the database-backed tests
 
 Most of this app's tests run without a database at all. Everything under
@@ -103,8 +151,11 @@ DATABASE_URL="postgres://..." npx drizzle-kit migrate
 
 ## Seeding fake postings and manually testing tabs end-to-end
 
-Tabs need job postings to reference, and the search/scraping project that
-populates `postings` for real doesn't exist yet. Until it does:
+Tabs and search both need job postings to reference. Real ones now come
+from the ingestion pipeline above (`npm run db:ingest`, once at least one
+source is configured — Greenhouse needs no API key, see "Configuring
+postings ingestion"). Before configuring any real source, or if you just
+want fixed, predictable data for a quick manual check:
 
 ```bash
 DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test" npm run db:seed -w packages/web

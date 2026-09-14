@@ -4,3 +4,4 @@ packages/web/.next/
 .env
 .env.local
 .env*.local
+.playwright-mcp/
