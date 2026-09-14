@@ -94,6 +94,38 @@ Judging runs two ways, mirroring ingestion:
 An account with none of `constraints`/`background`/`preferences`/`resume`
 stored is skipped entirely — there's nothing to judge a posting against.
 
+## Configuring resume tailoring
+
+Once a posting has a `strong` or `fair` verdict, `tailored_resumes` gets
+populated by a scheduled pipeline (`lib/tailoring/run-tailoring.ts`) that
+generates a tailored resume PDF for it via
+[OpenRouter](https://openrouter.ai/) — reusing `OPENROUTER_API_KEY` and
+`JUDGE_MODEL` from "Configuring judging" above, no separate key or model
+setting.
+
+- `TAILOR_BATCH_SIZE` — optional, defaults to 25. The most postings
+  tailored per account in one scheduled run; the rest are picked up next
+  time.
+
+An account with no resume uploaded is skipped entirely. The generated PDF
+follows one shared visual template for every account — only the section
+order and contact block are carried over from the applicant's own resume,
+not its fonts, colors, or layout (see
+`docs/superpowers/specs/2026-09-14-resume-tailoring-design.md` for why).
+
+Tailoring runs two ways, mirroring judging:
+
+- **Scheduled**, via `GET /api/cron/tailor-resumes`, which Vercel Cron
+  calls per `vercel.json`'s schedule (every 6 hours, offset an hour after
+  judging). This route requires `CRON_SECRET` (shared with the other cron
+  routes) — without it, every call is refused with `401`.
+- **Manually**, via `npm run db:tailor -w packages/web`, against whatever
+  `DATABASE_URL` is set to.
+
+A generated resume is downloadable from `GET
+/api/tailored-resumes/<posting id>` (also linked from the posting card
+wherever one exists) once it's been tailored.
+
 ## Running the database-backed tests
 
 Most of this app's tests run without a database at all. Everything under
