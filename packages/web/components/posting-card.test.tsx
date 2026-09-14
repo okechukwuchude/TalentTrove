@@ -46,4 +46,13 @@ describe('PostingCard', () => {
     expect(screen.getByText('strong')).toBeInTheDocument();
     expect(screen.getByText('Great fit for this role.')).toBeInTheDocument();
   });
+
+  it('shows a download link only when the posting has a tailored resume', () => {
+    const { rerender } = render(<PostingCard posting={posting} />);
+    expect(screen.queryByRole('link', { name: 'Download tailored resume' })).not.toBeInTheDocument();
+
+    rerender(<PostingCard posting={{ ...posting, has_tailored_resume: true }} />);
+    const link = screen.getByRole('link', { name: 'Download tailored resume' });
+    expect(link).toHaveAttribute('href', `/api/tailored-resumes/${posting.id}`);
+  });
 });

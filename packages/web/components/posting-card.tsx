@@ -34,6 +34,14 @@ export function PostingCard({ posting, actions }: { posting: Posting; actions?: 
             )}
           </div>
         )}
+        {posting.has_tailored_resume && (
+          <a
+            href={`/api/tailored-resumes/${posting.id}`}
+            className="basis-full text-sm font-medium text-primary hover:underline"
+          >
+            Download tailored resume
+          </a>
+        )}
       </CardContent>
     </Card>
   );
