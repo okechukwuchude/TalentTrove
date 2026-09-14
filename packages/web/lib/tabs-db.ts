@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import { getDb } from './db.ts';
-import { postings, tabItems, tabs } from '../db/schema.ts';
+import { postings, tabItems, tabs, judgments } from '../db/schema.ts';
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -36,7 +36,11 @@ function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
-function toPostingJson(row: PostingRow, itemId?: string): PostingJson {
+function toPostingJson(
+  row: PostingRow,
+  itemId?: string,
+  judgment?: { verdict: string; reasoning: string },
+): PostingJson {
   return {
     id: row.id,
     title: row.title,
@@ -47,6 +51,7 @@ function toPostingJson(row: PostingRow, itemId?: string): PostingJson {
     posted_at: row.postedAt ? row.postedAt.toISOString() : null,
     url: row.url,
     ...(itemId ? { item_id: itemId } : {}),
+    ...(judgment ? { verdict: judgment.verdict, verdict_reasoning: judgment.reasoning } : {}),
   };
 }
 
@@ -142,9 +147,17 @@ export async function getTabContents(
   }
 
   const fetched = await getDb()
-    .select({ itemId: tabItems.id, addedAt: tabItems.addedAt, postingId: tabItems.postingId, posting: postings })
+    .select({
+      itemId: tabItems.id,
+      addedAt: tabItems.addedAt,
+      postingId: tabItems.postingId,
+      posting: postings,
+      verdict: judgments.verdict,
+      reasoning: judgments.reasoning,
+    })
     .from(tabItems)
     .leftJoin(postings, eq(postings.id, tabItems.postingId))
+    .leftJoin(judgments, and(eq(judgments.postingId, tabItems.postingId), eq(judgments.userId, userId)))
     .where(and(...conditions))
     .orderBy(asc(tabItems.addedAt), asc(tabItems.id))
     .limit(limit + 1);
@@ -156,7 +169,9 @@ export async function getTabContents(
   const noLongerPresent: { postingId: string; itemId: string }[] = [];
   for (const row of page) {
     if (row.posting) {
-      rows.push(toPostingJson(row.posting, row.itemId));
+      rows.push(
+        toPostingJson(row.posting, row.itemId, row.verdict ? { verdict: row.verdict, reasoning: row.reasoning! } : undefined),
+      );
     } else {
       noLongerPresent.push({ postingId: row.postingId, itemId: row.itemId });
     }

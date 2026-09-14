@@ -18,6 +18,7 @@ describe.skipIf(!testDatabaseUrl)('tabs-db', () => {
   });
 
   afterEach(async () => {
+    await sql`delete from judgments`;
     await sql`delete from tab_items`;
     await sql`delete from postings`;
     await sql`delete from tabs`;
@@ -120,6 +121,23 @@ describe.skipIf(!testDatabaseUrl)('tabs-db', () => {
     expect(page!.rows[0]!.item_id).toBeTruthy();
     expect(page!.noLongerPresent).toEqual([{ postingId: removed, itemId: expect.any(String) }]);
     expect(page!.cursor).toBeNull();
+  });
+
+  it('getTabContents includes a stored verdict when one exists for the caller', async () => {
+    const userId = await freshUserId();
+    const postingId = await insertPosting({ title: 'Judged Posting' });
+    await tabsDb.createTab(userId, 'shortlist', null);
+    const tab = await tabsDb.findTabByName(userId, 'shortlist');
+    await tabsDb.addPostingsToTab(userId, tab!.id, [postingId]);
+    await sql`
+      insert into judgments (user_id, posting_id, verdict, reasoning, model)
+      values (${userId}, ${postingId}, 'fair', 'Reasonable match.', 'test/model')
+    `;
+
+    const page = await tabsDb.getTabContents(userId, tab!.id, 20, null);
+
+    expect(page!.rows[0]!.verdict).toBe('fair');
+    expect(page!.rows[0]!.verdict_reasoning).toBe('Reasonable match.');
   });
 
   it('getTabContents paginates with a cursor', async () => {
