@@ -47,6 +47,9 @@ describe('leverAdapter', () => {
         source: 'lever',
       },
     ]);
-    expect(fetchMock).toHaveBeenCalledWith('https://api.lever.co/v0/postings/acme?mode=json');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.lever.co/v0/postings/acme?mode=json',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
   });
 });

@@ -1,5 +1,5 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
-import { countryFromLocation, parseCompanyList } from './shared.ts';
+import { countryFromLocation, normalizeCountry, parseCompanyList } from './shared.ts';
 
 type AshbyJob = {
   title?: string;
@@ -31,7 +31,7 @@ function mapJob(job: AshbyJob, company: string): RawPosting | null {
     title: job.title,
     company,
     locations: job.location ? [job.location] : undefined,
-    country: countryFromLocation(job.location),
+    country: normalizeCountry(countryFromLocation(job.location)),
     workplace: job.isRemote === true ? 'remote' : null,
     employment: mapEmployment(job.employmentType),
     postedAt: job.publishedAt ? new Date(job.publishedAt) : null,
@@ -46,8 +46,13 @@ async function fetchPostings(): Promise<RawPosting[]> {
 
   const results: RawPosting[] = [];
   for (const { token, displayName } of companies) {
-    const response = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${token}`);
-    if (!response.ok) continue;
+    const response = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${token}`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      console.error(`ashby: company "${token}" failed with ${response.status}`);
+      continue;
+    }
     const body = (await response.json()) as { jobs?: AshbyJob[] };
     for (const job of body.jobs ?? []) {
       const mapped = mapJob(job, displayName);

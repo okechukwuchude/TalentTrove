@@ -48,6 +48,62 @@ describe('greenhouseAdapter', () => {
         source: 'greenhouse',
       },
     ]);
-    expect(fetchMock).toHaveBeenCalledWith('https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=true');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=true',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+  });
+
+  it('leaves locations/country/workplace unset for a job with no location, rather than throwing', async () => {
+    process.env.GREENHOUSE_COMPANIES = 'acme:Acme Corp';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jobs: [{ title: 'Remote-Friendly Role', absolute_url: 'https://example.com/jobs/greenhouse-2' }],
+        }),
+      }),
+    );
+
+    const rows = await greenhouseAdapter.fetchPostings();
+
+    expect(rows).toEqual([
+      {
+        title: 'Remote-Friendly Role',
+        company: 'Acme Corp',
+        locations: undefined,
+        country: null,
+        workplace: null,
+        employment: null,
+        postedAt: null,
+        url: 'https://example.com/jobs/greenhouse-2',
+        source: 'greenhouse',
+      },
+    ]);
+  });
+
+  it('strips a "- Remote" suffix from the country segment instead of storing it as the country', async () => {
+    process.env.GREENHOUSE_COMPANIES = 'acme:Acme Corp';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jobs: [
+            {
+              title: 'Support Engineer',
+              absolute_url: 'https://example.com/jobs/greenhouse-3',
+              location: { name: 'United States - Remote' },
+            },
+          ],
+        }),
+      }),
+    );
+
+    const [row] = await greenhouseAdapter.fetchPostings();
+
+    expect(row!.country).toBe('United States');
+    expect(row!.workplace).toBe('remote');
   });
 });

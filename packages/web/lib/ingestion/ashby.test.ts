@@ -50,6 +50,9 @@ describe('ashbyAdapter', () => {
         source: 'ashby',
       },
     ]);
-    expect(fetchMock).toHaveBeenCalledWith('https://api.ashbyhq.com/posting-api/job-board/acme');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.ashbyhq.com/posting-api/job-board/acme',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
   });
 });

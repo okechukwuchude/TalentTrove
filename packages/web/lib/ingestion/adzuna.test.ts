@@ -56,6 +56,9 @@ describe('adzunaAdapter', () => {
         source: 'adzuna',
       },
     ]);
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/jobs/us/search/1'));
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/jobs/us/search/1'),
+      expect.objectContaining({ signal: expect.anything() }),
+    );
   });
 });

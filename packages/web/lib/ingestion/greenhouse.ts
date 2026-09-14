@@ -1,5 +1,5 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
-import { countryFromLocation, parseCompanyList } from './shared.ts';
+import { countryFromLocation, normalizeCountry, parseCompanyList } from './shared.ts';
 
 type GreenhouseJob = {
   title?: string;
@@ -15,7 +15,7 @@ function mapJob(job: GreenhouseJob, company: string): RawPosting | null {
     title: job.title,
     company,
     locations: location ? [location] : undefined,
-    country: countryFromLocation(location),
+    country: normalizeCountry(countryFromLocation(location)),
     workplace: location?.toLowerCase().includes('remote') ? 'remote' : null,
     employment: null, // Greenhouse's public jobs endpoint has no standard employment-type field to map
     postedAt: job.updated_at ? new Date(job.updated_at) : null,
@@ -30,8 +30,13 @@ async function fetchPostings(): Promise<RawPosting[]> {
 
   const results: RawPosting[] = [];
   for (const { token, displayName } of companies) {
-    const response = await fetch(`https://boards-api.greenhouse.io/v1/boards/${token}/jobs?content=true`);
-    if (!response.ok) continue;
+    const response = await fetch(`https://boards-api.greenhouse.io/v1/boards/${token}/jobs?content=true`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      console.error(`greenhouse: company "${token}" failed with ${response.status}`);
+      continue;
+    }
     const body = (await response.json()) as { jobs?: GreenhouseJob[] };
     for (const job of body.jobs ?? []) {
       const mapped = mapJob(job, displayName);

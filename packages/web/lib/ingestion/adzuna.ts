@@ -1,15 +1,7 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
+import { normalizeCountry } from './shared.ts';
 
 const ADZUNA_ENDPOINT = 'https://api.adzuna.com/v1/api/jobs';
-
-const COUNTRY_NAMES: Record<string, string> = {
-  us: 'United States',
-  gb: 'United Kingdom',
-  ca: 'Canada',
-  au: 'Australia',
-  de: 'Germany',
-  fr: 'France',
-};
 
 type AdzunaJob = {
   title?: string;
@@ -38,7 +30,7 @@ function mapJob(job: AdzunaJob, countryCode: string): RawPosting | null {
     title,
     company,
     locations: location ? [location] : undefined,
-    country: COUNTRY_NAMES[countryCode] ?? countryCode,
+    country: normalizeCountry(countryCode),
     workplace: location?.toLowerCase().includes('remote') || title.toLowerCase().includes('remote') ? 'remote' : null,
     employment: mapEmployment(job.contract_time, job.contract_type),
     postedAt: job.created ? new Date(job.created) : null,
@@ -58,8 +50,11 @@ async function fetchPostings(): Promise<RawPosting[]> {
   for (const country of countries) {
     for (const query of queries) {
       const url = `${ADZUNA_ENDPOINT}/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${encodeURIComponent(query)}&content-type=application/json`;
-      const response = await fetch(url);
-      if (!response.ok) continue;
+      const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) {
+        console.error(`adzuna: ${country}/"${query}" failed with ${response.status}`);
+        continue;
+      }
       const body = (await response.json()) as { results?: AdzunaJob[] };
       for (const job of body.results ?? []) {
         const mapped = mapJob(job, country);

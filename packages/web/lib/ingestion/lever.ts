@@ -1,5 +1,5 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
-import { countryFromLocation, parseCompanyList } from './shared.ts';
+import { countryFromLocation, normalizeCountry, parseCompanyList } from './shared.ts';
 
 type LeverPosting = {
   text?: string;
@@ -32,7 +32,7 @@ function mapJob(job: LeverPosting, company: string): RawPosting | null {
     title: job.text,
     company,
     locations: location ? [location] : undefined,
-    country: countryFromLocation(location),
+    country: normalizeCountry(countryFromLocation(location)),
     workplace: mapWorkplace(job.workplaceType),
     employment: mapEmployment(job.categories?.commitment),
     postedAt: job.createdAt ? new Date(job.createdAt) : null,
@@ -47,8 +47,13 @@ async function fetchPostings(): Promise<RawPosting[]> {
 
   const results: RawPosting[] = [];
   for (const { token, displayName } of companies) {
-    const response = await fetch(`https://api.lever.co/v0/postings/${token}?mode=json`);
-    if (!response.ok) continue;
+    const response = await fetch(`https://api.lever.co/v0/postings/${token}?mode=json`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      console.error(`lever: company "${token}" failed with ${response.status}`);
+      continue;
+    }
     const body = (await response.json()) as LeverPosting[];
     for (const job of body) {
       const mapped = mapJob(job, displayName);

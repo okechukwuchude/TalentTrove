@@ -1,4 +1,5 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
+import { normalizeCountry } from './shared.ts';
 
 const JSEARCH_ENDPOINT = 'https://jsearch.p.rapidapi.com/search';
 
@@ -36,7 +37,7 @@ function mapJob(job: JSearchJob): RawPosting | null {
     title: job.job_title,
     company: job.employer_name,
     locations: locationParts.length > 0 ? [locationParts.join(', ')] : undefined,
-    country: job.job_country ?? null,
+    country: normalizeCountry(job.job_country),
     workplace: job.job_is_remote === true ? 'remote' : null,
     employment: mapEmployment(job.job_employment_type),
     postedAt: job.job_posted_at_datetime_utc ? new Date(job.job_posted_at_datetime_utc) : null,
@@ -55,8 +56,12 @@ async function fetchPostings(): Promise<RawPosting[]> {
     const url = `${JSEARCH_ENDPOINT}?query=${encodeURIComponent(query)}&num_pages=1`;
     const response = await fetch(url, {
       headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'jsearch.p.rapidapi.com' },
+      signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok) continue;
+    if (!response.ok) {
+      console.error(`jsearch: query "${query}" failed with ${response.status}`);
+      continue;
+    }
     const body = (await response.json()) as { data?: JSearchJob[] };
     for (const job of body.data ?? []) {
       const mapped = mapJob(job);

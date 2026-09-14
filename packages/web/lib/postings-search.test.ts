@@ -81,6 +81,15 @@ describe.skipIf(!testDatabaseUrl)('postings-search', () => {
     expect(result.rows.map((row) => row.title)).toEqual(['Match']);
   });
 
+  it('normalizes the country filter so an abbreviation matches its canonical name without substring-matching an unrelated country', async () => {
+    await insertPosting({ title: 'US role', country: 'United States' });
+    await insertPosting({ title: 'Australian role', country: 'Australia' });
+
+    const result = await searchPostings({ country: 'us' }, 20, null);
+
+    expect(result.rows.map((row) => row.title)).toEqual(['US role']);
+  });
+
   it('paginates with a cursor, no-search-words mode', async () => {
     await insertPosting({ title: 'A', postedAt: '2026-09-01T00:00:00Z' });
     await insertPosting({ title: 'B', postedAt: '2026-09-02T00:00:00Z' });

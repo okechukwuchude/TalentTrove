@@ -46,7 +46,7 @@ describe('jsearchAdapter', () => {
         title: 'Staff Software Engineer',
         company: 'Acme Corp',
         locations: ['Remote, US'],
-        country: 'US',
+        country: 'United States',
         workplace: 'remote',
         employment: 'full-time',
         postedAt: new Date('2026-09-01T00:00:00.000Z'),

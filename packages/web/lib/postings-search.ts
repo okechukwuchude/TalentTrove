@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gt, gte, ilike, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { getDb } from './db.ts';
 import { postings } from '../db/schema.ts';
+import { normalizeCountry } from './ingestion/shared.ts';
 import type { PostingJson } from './tabs-db.ts';
 
 export type SearchFilters = {
@@ -86,7 +87,24 @@ export async function searchPostings(
     );
   }
   if (filters.country) {
-    conditions.push(ilike(postings.country, `%${filters.country}%`));
+    // NOTE (fix, post-review): every adapter now stores `country` through
+    // `normalizeCountry` (one canonical spelling per country — see that
+    // function's doc comment), but this filter's value is still whatever a
+    // person typed into a plain text box. Routing it through the same
+    // `normalizeCountry` before comparing means "us"/"USA"/"United States"
+    // all resolve to the one spelling actually stored, so an *exact*
+    // (anchored, case-insensitive) match works without requiring the exact
+    // canonical spelling — and, unlike the previous unanchored
+    // `ilike('%...%')`, "us" no longer substring-matches "Australia" or
+    // "Belarus". A value that doesn't normalize to a country (e.g. someone
+    // typing "remote" into the country box) is treated as no filter at all,
+    // consistent with this codebase's "can't confidently map, omit rather
+    // than guess" convention — filtering to zero results on a nonsensical
+    // input would be a worse outcome than ignoring it.
+    const normalizedCountry = normalizeCountry(filters.country);
+    if (normalizedCountry) {
+      conditions.push(ilike(postings.country, normalizedCountry));
+    }
   }
   if (filters.workplace) {
     conditions.push(eq(postings.workplace, filters.workplace));
