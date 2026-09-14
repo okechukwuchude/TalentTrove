@@ -8,6 +8,7 @@ type AshbyJob = {
   isRemote?: boolean;
   employmentType?: string;
   publishedAt?: string;
+  descriptionPlain?: string;
 };
 
 function mapEmployment(raw: string | undefined): RawPosting['employment'] {
@@ -34,6 +35,7 @@ function mapJob(job: AshbyJob, company: string): RawPosting | null {
     country: normalizeCountry(countryFromLocation(job.location)),
     workplace: job.isRemote === true ? 'remote' : null,
     employment: mapEmployment(job.employmentType),
+    description: job.descriptionPlain ?? null,
     postedAt: job.publishedAt ? new Date(job.publishedAt) : null,
     url: job.jobUrl,
     source: 'ashby',

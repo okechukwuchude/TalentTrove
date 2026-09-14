@@ -8,6 +8,7 @@ export type RawPosting = {
   country?: string | null;
   workplace?: Workplace | null;
   employment?: Employment | null;
+  description?: string | null;
   postedAt?: Date | null;
   url: string;
   source: string;

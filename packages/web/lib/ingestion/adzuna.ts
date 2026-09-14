@@ -11,6 +11,7 @@ type AdzunaJob = {
   contract_type?: string;
   created?: string;
   redirect_url?: string;
+  description?: string;
 };
 
 function mapEmployment(contractTime: string | undefined, contractType: string | undefined): RawPosting['employment'] {
@@ -33,6 +34,7 @@ function mapJob(job: AdzunaJob, countryCode: string): RawPosting | null {
     country: normalizeCountry(countryCode),
     workplace: location?.toLowerCase().includes('remote') || title.toLowerCase().includes('remote') ? 'remote' : null,
     employment: mapEmployment(job.contract_time, job.contract_type),
+    description: job.description ?? null,
     postedAt: job.created ? new Date(job.created) : null,
     url,
     source: 'adzuna',

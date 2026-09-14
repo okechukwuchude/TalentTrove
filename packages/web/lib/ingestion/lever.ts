@@ -7,6 +7,8 @@ type LeverPosting = {
   createdAt?: number;
   workplaceType?: string;
   categories?: { location?: string; commitment?: string };
+  descriptionPlain?: string;
+  description?: string;
 };
 
 function mapWorkplace(raw: string | undefined): RawPosting['workplace'] {
@@ -35,6 +37,7 @@ function mapJob(job: LeverPosting, company: string): RawPosting | null {
     country: normalizeCountry(countryFromLocation(location)),
     workplace: mapWorkplace(job.workplaceType),
     employment: mapEmployment(job.categories?.commitment),
+    description: job.descriptionPlain ?? job.description ?? null,
     postedAt: job.createdAt ? new Date(job.createdAt) : null,
     url: job.hostedUrl,
     source: 'lever',

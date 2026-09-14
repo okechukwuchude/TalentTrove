@@ -13,6 +13,7 @@ type JSearchJob = {
   job_employment_type?: string;
   job_posted_at_datetime_utc?: string;
   job_apply_link?: string;
+  job_description?: string;
 };
 
 function mapEmployment(raw: string | undefined): RawPosting['employment'] {
@@ -40,6 +41,7 @@ function mapJob(job: JSearchJob): RawPosting | null {
     country: normalizeCountry(job.job_country),
     workplace: job.job_is_remote === true ? 'remote' : null,
     employment: mapEmployment(job.job_employment_type),
+    description: job.job_description ?? null,
     postedAt: job.job_posted_at_datetime_utc ? new Date(job.job_posted_at_datetime_utc) : null,
     url: job.job_apply_link,
     source: 'jsearch',

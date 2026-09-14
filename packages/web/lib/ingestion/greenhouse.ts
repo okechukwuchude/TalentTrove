@@ -6,6 +6,7 @@ type GreenhouseJob = {
   absolute_url?: string;
   updated_at?: string;
   location?: { name?: string };
+  content?: string;
 };
 
 function mapJob(job: GreenhouseJob, company: string): RawPosting | null {
@@ -18,6 +19,7 @@ function mapJob(job: GreenhouseJob, company: string): RawPosting | null {
     country: normalizeCountry(countryFromLocation(location)),
     workplace: location?.toLowerCase().includes('remote') ? 'remote' : null,
     employment: null, // Greenhouse's public jobs endpoint has no standard employment-type field to map
+    description: job.content ?? null,
     postedAt: job.updated_at ? new Date(job.updated_at) : null,
     url: job.absolute_url,
     source: 'greenhouse',
