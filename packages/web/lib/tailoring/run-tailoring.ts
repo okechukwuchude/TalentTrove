@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
-import { createElement } from 'react';
+import { createElement, type ReactElement } from 'react';
 import { pathToFileURL } from 'node:url';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { closeDb, getDb } from '../db.ts';
@@ -141,7 +141,7 @@ export async function runTailoring(
               skills: content.skills,
               experience: content.experience,
               education: content.education,
-            }),
+            }) as ReactElement<any, any>,
           );
           await getDb()
             .insert(tailoredResumes)
