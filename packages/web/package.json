@@ -9,7 +9,8 @@
     "start": "next start",
     "db:seed": "tsx db/seed-postings.ts",
     "db:ingest": "tsx lib/ingestion/run-ingestion.ts",
-    "db:judge": "tsx lib/judging/run-judging.ts"
+    "db:judge": "tsx lib/judging/run-judging.ts",
+    "db:tailor": "tsx lib/tailoring/run-tailoring.ts"
   },
   "dependencies": {
     "@pinloop/shared": "*",
