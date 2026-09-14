@@ -60,6 +60,7 @@ export const postings = pgTable(
     country: text('country'),
     workplace: text('workplace'),
     employment: text('employment'),
+    description: text('description'),
     postedAt: timestamp('posted_at', { withTimezone: true }),
     url: text('url').notNull(),
     source: text('source').notNull(),
@@ -93,4 +94,20 @@ export const tabItems = pgTable(
     addedAt: timestamp('added_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('tab_items_tab_id_posting_id_key').on(table.tabId, table.postingId)],
+);
+
+export const judgments = pgTable(
+  'judgments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    postingId: uuid('posting_id').notNull(), // deliberately not a foreign key — see the design spec
+    verdict: text('verdict').notNull(),
+    reasoning: text('reasoning').notNull(),
+    model: text('model').notNull(),
+    judgedAt: timestamp('judged_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('judgments_user_id_posting_id_key').on(table.userId, table.postingId)],
 );
