@@ -78,4 +78,24 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     `;
     expect(indexes).toHaveLength(1);
   });
+
+  it('adds a style_profile column to profile_documents and creates tailored_resumes', async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'profile_documents' and column_name = 'style_profile'
+    `;
+    expect(columns).toHaveLength(1);
+
+    const tables = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public' and table_name = 'tailored_resumes'
+    `;
+    expect(tables).toHaveLength(1);
+
+    const indexes = await sql<{ indexname: string }[]>`
+      select indexname from pg_indexes
+      where schemaname = 'public' and tablename = 'tailored_resumes' and indexname = 'tailored_resumes_user_id_posting_id_key'
+    `;
+    expect(indexes).toHaveLength(1);
+  });
 });

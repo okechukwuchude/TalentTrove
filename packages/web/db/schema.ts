@@ -1,4 +1,4 @@
-import { customType, integer, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { customType, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -45,6 +45,7 @@ export const profileDocuments = pgTable(
     fileBytes: bytea('file_bytes'), // set when kind = 'file' — the resume PDF
     bytes: integer('bytes').notNull(),
     originalFilename: text('original_filename'), // set when kind = 'file'
+    styleProfile: jsonb('style_profile'), // cached section-order/contact extraction — meaningful only on the 'resume' row; cleared to null when the file changes
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.userId, table.name] })],
@@ -110,4 +111,19 @@ export const judgments = pgTable(
     judgedAt: timestamp('judged_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('judgments_user_id_posting_id_key').on(table.userId, table.postingId)],
+);
+
+export const tailoredResumes = pgTable(
+  'tailored_resumes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    postingId: uuid('posting_id').notNull(), // deliberately not a foreign key — same reasoning as judgments.postingId
+    pdfBytes: bytea('pdf_bytes').notNull(),
+    model: text('model').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('tailored_resumes_user_id_posting_id_key').on(table.userId, table.postingId)],
 );

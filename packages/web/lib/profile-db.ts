@@ -109,6 +109,7 @@ export async function upsertFileDocument(
       fileBytes: bytes,
       bytes: bytes.length,
       originalFilename,
+      styleProfile: null,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -119,6 +120,7 @@ export async function upsertFileDocument(
         fileBytes: bytes,
         bytes: bytes.length,
         originalFilename,
+        styleProfile: null,
         updatedAt: new Date(),
       },
     })
