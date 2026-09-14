@@ -21,6 +21,11 @@ export async function runIngestion(adapters: IngestionAdapter[] = DEFAULT_ADAPTE
       const upserted = await upsertPostings(raw);
       summaries.push({ source: adapter.name, fetched: raw.length, upserted, failed: null });
     } catch (error) {
+      // The summary's `failed` field is a bare message — enough for the
+      // cron route's JSON body, not enough to debug from. Log the full
+      // error (stack trace included, for a real `Error`) to the function's
+      // own logs, which is the only place that detail is still available.
+      console.error(`ingestion adapter "${adapter.name}" failed`, error);
       summaries.push({
         source: adapter.name,
         fetched: 0,
