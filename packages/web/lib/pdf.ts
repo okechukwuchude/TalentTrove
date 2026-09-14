@@ -27,6 +27,7 @@ export type ParsedResume = {
   pages: number;
   pagesRead: number;
   characters: number;
+  text: string;
   note?: string;
 };
 
@@ -67,6 +68,7 @@ export async function parseResumePdf(bytes: Buffer): Promise<ParsedResume> {
     pages,
     pagesRead,
     characters,
+    text: data.text.trim(),
     ...(characters === 0 ? { note: NO_TEXT_NOTE } : {}),
   };
 }

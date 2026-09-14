@@ -65,6 +65,7 @@ describe('parseResumePdf', () => {
     expect(result.pages).toBe(1);
     expect(result.pagesRead).toBe(1);
     expect(result.characters).toBeGreaterThan(0);
+    expect(result.text).toContain('Hello resume');
     expect(result.note).toBeUndefined();
   });
 
@@ -73,6 +74,7 @@ describe('parseResumePdf', () => {
     expect(result.pages).toBe(1);
     expect(result.pagesRead).toBe(0);
     expect(result.characters).toBe(0);
+    expect(result.text).toBe('');
     expect(result.note).toBe('this file may be a scanned image with no extractable text');
   });
 
