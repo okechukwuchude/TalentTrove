@@ -162,7 +162,7 @@ export async function runTailoring(
           );
           await getDb()
             .insert(tailoredResumes)
-            .values({ userId: account.id, postingId: posting.id, pdfBytes, coverLetter: '', model })
+            .values({ userId: account.id, postingId: posting.id, pdfBytes, coverLetter: content.coverLetter, model })
             .onConflictDoNothing();
           tailored += 1;
         } catch (error) {

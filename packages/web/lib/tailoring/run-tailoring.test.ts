@@ -196,9 +196,10 @@ describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
     const summary = await runTailoring(alwaysStyle, alwaysTailor);
 
     expect(summary).toEqual([{ userId, tailored: 1, failed: 0 }]);
-    const rows = await sql`select posting_id from tailored_resumes where user_id = ${userId}`;
+    const rows = await sql`select posting_id, cover_letter from tailored_resumes where user_id = ${userId}`;
     expect(rows).toHaveLength(1);
     expect(rows[0]!.posting_id).toBe(strongPosting);
+    expect(rows[0]!.cover_letter).toBe(TAILORED_CONTENT.coverLetter);
   });
 
   it('records a summary entry with failed = candidate count when style extraction fails', async () => {
@@ -251,8 +252,8 @@ describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
     const postingId = await insertPosting();
     await insertJudgment(userId, postingId, 'strong');
     await sql`
-      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
-      values (${userId}, ${postingId}, ${Buffer.from('%PDF-existing')}, 'test/model')
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, cover_letter, model)
+      values (${userId}, ${postingId}, ${Buffer.from('%PDF-existing')}, 'Existing cover letter', 'test/model')
     `;
     let tailorCalls = 0;
 
