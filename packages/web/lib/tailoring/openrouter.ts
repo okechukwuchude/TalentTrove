@@ -1,4 +1,4 @@
-const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+﻿const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 const KNOWN_SECTIONS = ['summary', 'skills', 'experience', 'education'] as const;
 
@@ -142,6 +142,7 @@ export type TailoredContent = {
   skills: string[];
   experience: Array<{ title: string; company: string; dates: string; bullets: string[] }>;
   education: Array<{ degree: string; school: string; dates: string }>;
+  coverLetter: string;
 };
 export type TailorContentResult = TailoredContent | { error: string };
 export type TailorRequest = {
@@ -186,8 +187,9 @@ const TAILOR_CONTENT_TOOL = {
             required: ['degree', 'school', 'dates'],
           },
         },
+        coverLetter: { type: 'string' },
       },
-      required: ['summary', 'skills', 'experience', 'education'],
+      required: ['summary', 'skills', 'experience', 'education', 'coverLetter'],
     },
   },
 } as const;
@@ -226,7 +228,7 @@ export async function tailorResumeContent(
         messages: [
           {
             role: 'system',
-            content: `You tailor a resume's content to fit one specific job posting, using only what is true of the candidate — never invent experience, skills, or education they do not have. Only write content for these sections, in this exact set: ${request.sectionOrder.join(', ')}. Leave any section not in that list empty. Do not include contact information — that is handled separately.`,
+            content: `You tailor a resume's content to fit one specific job posting, using only what is true of the candidate — never invent experience, skills, or education they do not have. Only write content for these sections, in this exact set: ${request.sectionOrder.join(', ')}. Leave any section not in that list empty. Do not include contact information — that is handled separately. Also write a brief, professional cover letter (2-4 short paragraphs) specific to this posting, using the same candidate facts.`,
           },
           {
             role: 'user',
@@ -251,7 +253,7 @@ export async function tailorResumeContent(
     return { error: 'submit_tailored_resume arguments did not return an object' };
   }
 
-  const p = parsed as { summary?: unknown; skills?: unknown; experience?: unknown; education?: unknown };
+  const p = parsed as { summary?: unknown; skills?: unknown; experience?: unknown; education?: unknown; coverLetter?: unknown };
   if (typeof p.summary !== 'string') {
     return { error: 'model returned no summary' };
   }
@@ -264,11 +266,15 @@ export async function tailorResumeContent(
   if (!Array.isArray(p.education) || !p.education.every(isEducationEntry)) {
     return { error: 'model returned an invalid education list' };
   }
+  if (typeof p.coverLetter !== 'string' || p.coverLetter.trim() === '') {
+    return { error: 'model returned no cover letter' };
+  }
 
   return {
     summary: p.summary,
     skills: p.skills as string[],
     experience: p.experience as TailoredContent['experience'],
     education: p.education as TailoredContent['education'],
+    coverLetter: p.coverLetter,
   };
 }

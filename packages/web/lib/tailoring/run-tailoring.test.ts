@@ -1,10 +1,10 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+﻿import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
 import { runMigrations } from '../../db/migrate.ts';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
-// A minimal, valid, single-page PDF with one line of real text — same
+// A minimal, valid, single-page PDF with one line of real text â€” same
 // fixture shape as lib/pdf.test.ts's PDF_WITH_TEXT, reused here so the
 // tailoring pipeline's own resume-parsing step has something real to parse.
 const RESUME_PDF = Buffer.from(
@@ -70,6 +70,7 @@ const TAILORED_CONTENT = {
   skills: [],
   experience: [{ title: 'Engineer', company: 'Acme', dates: '2022-Present', bullets: ['Did things.'] }],
   education: [],
+  coverLetter: 'Dear Hiring Manager, I am excited to apply for this position.',
 };
 
 describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
@@ -300,3 +301,4 @@ describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
     expect(rows).toHaveLength(2);
   });
 });
+

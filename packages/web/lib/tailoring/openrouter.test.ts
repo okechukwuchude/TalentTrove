@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+﻿import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractStyleProfile, tailorResumeContent } from './openrouter.ts';
 
 function toolCallResponse(toolName: string, args: Record<string, unknown>) {
@@ -69,6 +69,7 @@ describe('tailorResumeContent', () => {
       skills: ['TypeScript', 'PostgreSQL'],
       experience: [{ title: 'Engineer', company: 'Acme', dates: '2022-Present', bullets: ['Shipped things.'] }],
       education: [{ degree: 'B.S. CS', school: 'State U', dates: '2014-2018' }],
+      coverLetter: 'Dear Hiring Manager, I am excited to apply for this role...',
     };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(toolCallResponse('submit_tailored_resume', args)));
 
@@ -91,5 +92,20 @@ describe('tailorResumeContent', () => {
     const result = await tailorResumeContent('key', 'test/model', TAILOR_REQUEST);
 
     expect(result).toEqual({ error: 'openrouter request failed with 500' });
+  });
+
+  it('returns an error when the model returns an empty cover letter', async () => {
+    const args = {
+      summary: 'Backend engineer tailored for this role.',
+      skills: ['TypeScript'],
+      experience: [],
+      education: [],
+      coverLetter: '   ',
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(toolCallResponse('submit_tailored_resume', args)));
+
+    const result = await tailorResumeContent('key', 'test/model', TAILOR_REQUEST);
+
+    expect(result).toEqual({ error: 'model returned no cover letter' });
   });
 });
