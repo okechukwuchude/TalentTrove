@@ -6,10 +6,13 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:
 // required to be high-entropy, is the actual secret input.
 const SALT = 'pinloop-settings-v1';
 
+let cache: { secret: string; key: Buffer } | undefined;
+
 function deriveKey(): Buffer {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error('SESSION_SECRET must be set to encrypt/decrypt settings');
-  return scryptSync(secret, SALT, 32);
+  if (cache?.secret !== secret) cache = { secret, key: scryptSync(secret, SALT, 32) };
+  return cache.key;
 }
 
 export function encryptSecret(plaintext: string): string {
