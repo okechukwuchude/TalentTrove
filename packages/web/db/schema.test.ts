@@ -98,4 +98,24 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     `;
     expect(indexes).toHaveLength(1);
   });
+
+  it('adds a cover_letter column to tailored_resumes and creates the applications table', async () => {
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'tailored_resumes' and column_name = 'cover_letter'
+    `;
+    expect(columns).toHaveLength(1);
+
+    const tables = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public' and table_name = 'applications'
+    `;
+    expect(tables).toHaveLength(1);
+
+    const indexes = await sql<{ indexname: string }[]>`
+      select indexname from pg_indexes
+      where schemaname = 'public' and tablename = 'applications' and indexname = 'applications_user_id_posting_id_key'
+    `;
+    expect(indexes).toHaveLength(1);
+  });
 });

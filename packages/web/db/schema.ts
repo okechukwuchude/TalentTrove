@@ -122,8 +122,22 @@ export const tailoredResumes = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     postingId: uuid('posting_id').notNull(), // deliberately not a foreign key — same reasoning as judgments.postingId
     pdfBytes: bytea('pdf_bytes').notNull(),
+    coverLetter: text('cover_letter').notNull(),
     model: text('model').notNull(),
     generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('tailored_resumes_user_id_posting_id_key').on(table.userId, table.postingId)],
+);
+
+export const applications = pgTable(
+  'applications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    postingId: uuid('posting_id').notNull(), // deliberately not a foreign key — same reasoning as judgments/tailoredResumes
+    appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('applications_user_id_posting_id_key').on(table.userId, table.postingId)],
 );

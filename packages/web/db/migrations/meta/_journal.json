@@ -43,6 +43,13 @@
       "when": 1789417746460,
       "tag": "0005_mixed_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789459551953,
+      "tag": "0006_bouncy_namorita",
+      "breakpoints": true
     }
   ]
 }
