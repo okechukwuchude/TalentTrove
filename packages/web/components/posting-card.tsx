@@ -1,3 +1,5 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import { Badge } from './ui/badge.tsx';
 import { Button } from './ui/button.tsx';
@@ -56,7 +58,7 @@ export function PostingCard({ posting, actions }: { posting: Posting; actions?: 
                 // navigator.clipboard is unavailable in some contexts (non-HTTPS
                 // origins, some test/embedded environments) — no-op rather than
                 // throw; there is no polyfill for this.
-                navigator.clipboard?.writeText(posting.cover_letter ?? '');
+                navigator.clipboard?.writeText(posting.cover_letter ?? '').catch(() => {});
               }}
             >
               Copy

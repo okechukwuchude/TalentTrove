@@ -40,6 +40,7 @@ describe('ApplyView', () => {
               url: 'https://x/p1',
               verdict: 'strong',
               cover_letter: 'Dear Hiring Manager,',
+              has_tailored_resume: true,
             },
           ],
           cursor: null,
@@ -51,6 +52,7 @@ describe('ApplyView', () => {
     expect(await screen.findByRole('link', { name: 'Staff Engineer' })).toHaveAttribute('href', 'https://x/p1');
     expect(screen.getByText('Cover letter')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mark as applied' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Download tailored resume' })).toBeInTheDocument();
   });
 
   it('marking a posting applied removes it from the list', async () => {

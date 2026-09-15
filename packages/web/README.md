@@ -101,7 +101,9 @@ populated by a scheduled pipeline (`lib/tailoring/run-tailoring.ts`) that
 generates a tailored resume PDF for it via
 [OpenRouter](https://openrouter.ai/) — reusing `OPENROUTER_API_KEY` and
 `JUDGE_MODEL` from "Configuring judging" above, no separate key or model
-setting.
+setting. The same model call also generates a cover letter, stored on
+`tailored_resumes.cover_letter` — no additional environment variable is
+needed for it.
 
 - `TAILOR_BATCH_SIZE` — optional, defaults to 25. The most postings
   tailored per account in one scheduled run; the rest are picked up next
@@ -125,6 +127,22 @@ Tailoring runs two ways, mirroring judging:
 A generated resume is downloadable from `GET
 /api/tailored-resumes/<posting id>` (also linked from the posting card
 wherever one exists) once it's been tailored.
+
+## Applying to postings
+
+Once a posting has both a `strong`/`fair` verdict and a tailored resume, it's
+ready to apply to. `/apply` lists every such posting for the signed-in
+account that hasn't yet been marked applied — each entry shows the resume
+download link, the generated cover letter, and a link back to the original
+posting. Marking a posting applied removes it from this list.
+
+- `GET /api/applications/queue` — the paginated queue behind the `/apply`
+  page (same cursor convention as postings search).
+- `POST /api/applications/<posting id>` — marks a posting applied, removing
+  it from the queue.
+- `DELETE /api/applications/<posting id>` — reverses that. There's no UI
+  button for this in the current version — if you need to undo a mark, call
+  the route directly.
 
 ## Running the database-backed tests
 

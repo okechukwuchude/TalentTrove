@@ -6,6 +6,7 @@ CREATE TABLE "applications" (
 );
 --> statement-breakpoint
 ALTER TABLE "tailored_resumes" ADD COLUMN "cover_letter" text NOT NULL DEFAULT '';
+--> statement-breakpoint
 ALTER TABLE "tailored_resumes" ALTER COLUMN "cover_letter" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "applications" ADD CONSTRAINT "applications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "applications_user_id_posting_id_key" ON "applications" USING btree ("user_id","posting_id");

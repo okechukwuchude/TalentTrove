@@ -21,23 +21,29 @@ export function ApplyView() {
         isFetchingNextPage={queue.isFetchingNextPage}
         onLoadMore={() => queue.fetchNextPage()}
         emptyMessage="Nothing ready to apply to yet — postings show up here once judge and tailoring have processed them."
-        renderActions={(posting) => (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={markApplied.isPending}
-            onClick={() => markApplied.mutate(posting.id)}
-          >
-            {markApplied.isPending ? 'Marking…' : 'Mark as applied'}
-          </Button>
-        )}
+        renderActions={(posting) => {
+          const isThisPosting = markApplied.variables === posting.id;
+          const isPending = markApplied.isPending && isThisPosting;
+          return (
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                onClick={() => markApplied.mutate(posting.id)}
+              >
+                {isPending ? 'Marking…' : 'Mark as applied'}
+              </Button>
+              {markApplied.isError && isThisPosting && (
+                <p role="alert" className="text-sm text-destructive">
+                  Could not mark &quot;{posting.title}&quot; as applied: {markApplied.error.message}
+                </p>
+              )}
+            </div>
+          );
+        }}
       />
-      {markApplied.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {markApplied.error.message}
-        </p>
-      )}
     </div>
   );
 }

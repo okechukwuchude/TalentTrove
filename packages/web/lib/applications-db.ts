@@ -73,7 +73,7 @@ export async function getApplicationQueue(
    * actually represent.
    */
   const generatedAtMs = sql<Date>`date_trunc('milliseconds', ${tailoredResumes.generatedAt})`.mapWith(
-    (value: string) => new Date(value),
+    (value: string | Date) => new Date(value),
   );
 
   const conditions = [isNull(applications.id)];

@@ -100,11 +100,13 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
   });
 
   it('adds a cover_letter column to tailored_resumes and creates the applications table', async () => {
-    const columns = await sql<{ column_name: string }[]>`
-      select column_name from information_schema.columns
+    const columns = await sql<{ column_name: string; is_nullable: string; column_default: string | null }[]>`
+      select column_name, is_nullable, column_default from information_schema.columns
       where table_schema = 'public' and table_name = 'tailored_resumes' and column_name = 'cover_letter'
     `;
     expect(columns).toHaveLength(1);
+    expect(columns[0]?.is_nullable).toBe('NO');
+    expect(columns[0]?.column_default).toBeNull();
 
     const tables = await sql<{ table_name: string }[]>`
       select table_name from information_schema.tables
