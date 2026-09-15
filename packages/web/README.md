@@ -51,14 +51,18 @@ error, so you only need to configure the sources you actually want.
   name should read in search results. Example:
   `GREENHOUSE_COMPANIES=stripe:Stripe,figma:Figma`.
 
-All of the above (except the ATS company lists' underlying tokens, which
-are just what a company's own careers-board URL uses) can also be set from
-the running app at `/settings`, instead of editing these env vars — any
-signed-in account can view/edit them there, since ingestion is a single
-instance-wide job, not scoped per account. A value saved from `/settings`
-overrides its matching env var here; clearing it in the app (saving it
-blank) reverts to whatever's in the env var, if anything. API keys saved
-from `/settings` are encrypted at rest before being stored.
+All of the above can also be set from the running app at `/settings`,
+instead of editing these env vars — any signed-in account can view/edit
+them there, since ingestion is a single instance-wide job, not scoped per
+account. A value saved from `/settings` overrides its matching env var
+here; clearing it in the app (saving it blank) reverts to whatever's in
+the env var, if anything. API keys saved from `/settings` are encrypted
+at rest before being stored.
+
+Rotating `SESSION_SECRET` makes any API keys already saved from
+`/settings` unreadable (they're encrypted using a key derived from it) —
+re-enter them from `/settings` afterwards; the non-secret fields
+(queries, countries, company lists) are unaffected.
 
 Ingestion runs two ways:
 
