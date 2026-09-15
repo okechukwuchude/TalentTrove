@@ -326,4 +326,30 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     const otherSummary = summary.find((row) => row.userId === otherUserId);
     expect(otherSummary?.judged).toBeGreaterThan(0);
   });
+
+  it('judges a routine account and a zero-routines account correctly in the same run', async () => {
+    // A single shared posting, judged independently by each account through
+    // its own code path: the routine-scoped account matches it via its
+    // filter (routine branch), and the zero-routines account picks it up
+    // via the ordinary global sweep (non-routine branch) since it has no
+    // judgment of its own for this posting yet. Two separate judgments rows
+    // result (judgments are keyed per user, not globally), proving neither
+    // branch's behavior leaks into or is disrupted by the other's in the
+    // same runJudging() call.
+    await insertPosting({ title: 'Backend Engineer' });
+
+    const routineUserId = await freshUserId();
+    await profileDb.upsertTextDocument(routineUserId, 'background', 'Backend engineer.');
+    await routinesDb.createRoutine(routineUserId, 'backend-only', { q: 'Backend Engineer' }, null, null);
+
+    const globalUserId = await freshUserId();
+    await profileDb.upsertTextDocument(globalUserId, 'background', 'Anything works.');
+
+    const summary = await runJudging(async () => ({ verdict: 'fair', reasoning: 'ok' }));
+
+    const routineSummary = summary.find((row) => row.userId === routineUserId);
+    const globalSummary = summary.find((row) => row.userId === globalUserId);
+    expect(routineSummary).toEqual({ userId: routineUserId, judged: 1, failed: 0 });
+    expect(globalSummary).toEqual({ userId: globalUserId, judged: 1, failed: 0 });
+  });
 });

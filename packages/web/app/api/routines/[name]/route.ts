@@ -43,6 +43,13 @@ export async function PUT(request: Request, { params }: RoutineParams): Promise<
     typeof body?.destination_tab === 'string' && body.destination_tab.trim() ? body.destination_tab.trim() : null;
 
   const updated = await updateRoutine(auth.user.userId, name, { filters, judgePrompt, destinationTab });
+  if (!updated) {
+    // Narrow race: the routine was deleted between the findRoutineByName
+    // check above and this update. Report it the same way as the earlier
+    // not-found check, rather than returning 200 with a literal `null` body
+    // that client code would otherwise treat as success.
+    return Response.json({ error: `no routine named "${name}"` }, { status: 404 });
+  }
   return Response.json(updated);
 }
 

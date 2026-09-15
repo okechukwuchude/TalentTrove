@@ -130,12 +130,11 @@ describe('RoutinesView', () => {
     const card = screen.getByRole('button', { name: 'Edit' }).closest('.rounded-lg') as HTMLElement;
     fireEvent.click(within(card).getByRole('button', { name: 'Edit' }));
 
-    // FilterFields/CompanyCombobox now take an idPrefix (routines-view.tsx
-    // passes a distinct one per mounted instance: "new-routine-" for the
-    // always-present create form, "edit-<routine name>-" for each card's
-    // edit form), so every id on the page is unique even with the create
-    // form and an edit form mounted at once. getByLabelText can therefore
-    // resolve each field correctly, scoped to the card, with no workaround.
+    // FilterFields/CompanyCombobox generate their own unique ids internally
+    // via React's useId(), so every id on the page is unique even with the
+    // create form and an edit form mounted at once. getByLabelText can
+    // therefore resolve each field correctly, scoped to the card, with no
+    // workaround.
     expect(within(card).getByLabelText('Search words')).toHaveValue('staff engineer');
     expect(within(card).getByLabelText('Country')).toHaveValue('US');
     expect(within(card).getByLabelText('Workplace')).toHaveValue('remote');

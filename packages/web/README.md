@@ -94,6 +94,17 @@ Judging runs two ways, mirroring ingestion:
 An account with none of `constraints`/`background`/`preferences`/`resume`
 stored is skipped entirely — there's nothing to judge a posting against.
 
+Once an account has any routines (configurable at `/routines` — see
+"Configuring routines" below), judge stops the global sweep described above
+for that account entirely and instead judges only postings matching each
+routine's own filter, using that routine's own prompt. An account with zero
+routines is completely unaffected — it keeps getting the global sweep exactly
+as described above. `JUDGE_BATCH_SIZE` applies per-routine when routines
+exist, not shared across an account's routines in one run, so an account
+with several routines does proportionally more model calls per scheduled
+run — worth lowering the default if you configure many routines, given the
+judge cron route's request timeout budget.
+
 ## Configuring resume tailoring
 
 Once a posting has a `strong` or `fair` verdict, `tailored_resumes` gets
@@ -144,11 +155,31 @@ posting. Marking a posting applied removes it from this list.
   button for this in the current version — if you need to undo a mark, call
   the route directly.
 
+## Configuring routines
+
+A routine is a saved search filter — the same fields as `/search`'s filter
+form — plus an optional custom judge prompt and an optional destination tab.
+`/routines` lets you create, edit, and delete them for the signed-in account.
+Once any routine exists for an account, it replaces that account's global
+judge sweep, as described in "Configuring judging" above — see that section
+for exactly what changes, rather than duplicating it here.
+
+- `GET /api/routines` — list the account's routines.
+- `POST /api/routines` — create one. The body is flat (the same shape as
+  `/api/search`'s POST body, plus `name`, `judge_prompt`, and
+  `destination_tab`) — as with search, `company` is a comma-joined string on
+  write.
+- `PUT /api/routines/<name>` — update a routine's filter, prompt, or
+  destination tab. Not its name — renaming a routine is delete-and-recreate,
+  there's no rename endpoint.
+- `DELETE /api/routines/<name>` — delete one.
+
 ## Running the database-backed tests
 
 Most of this app's tests run without a database at all. Everything under
 `lib/auth-db.test.ts`, `lib/profile-db.test.ts`, `lib/tabs-db.test.ts`,
-`db/schema.test.ts`, `db/seed-postings.test.ts`, and every `app/api/**`
+`lib/routines-db.test.ts`, `db/schema.test.ts`, `db/seed-postings.test.ts`,
+and every `app/api/**`
 route test that touches a table needs a real Postgres to run against —
 each of these is written with `describe.skipIf(!process.env.TEST_DATABASE_URL)`,
 so with no database configured they report SKIPPED, not FAILED, and the

@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { Input } from '../../components/ui/input.tsx';
 import { Label } from '../../components/ui/label.tsx';
 import { CompanyCombobox } from './company-combobox.tsx';
@@ -28,18 +29,17 @@ export const EMPTY_FILTER_FIELDS: FilterFieldsValue = {
 export function FilterFields({
   value,
   onChange,
-  idPrefix = '',
 }: {
   value: FilterFieldsValue;
   onChange: (next: FilterFieldsValue) => void;
-  idPrefix?: string;
 }) {
+  const uid = useId();
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${idPrefix}search-words`}>Search words</Label>
+        <Label htmlFor={`${uid}-search-words`}>Search words</Label>
         <Input
-          id={`${idPrefix}search-words`}
+          id={`${uid}-search-words`}
           value={value.q}
           onChange={(event) => onChange({ ...value, q: event.target.value })}
           placeholder="e.g. staff engineer"
@@ -47,17 +47,17 @@ export function FilterFields({
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${idPrefix}country`}>Country</Label>
+          <Label htmlFor={`${uid}-country`}>Country</Label>
           <Input
-            id={`${idPrefix}country`}
+            id={`${uid}-country`}
             value={value.country}
             onChange={(event) => onChange({ ...value, country: event.target.value })}
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${idPrefix}workplace`}>Workplace</Label>
+          <Label htmlFor={`${uid}-workplace`}>Workplace</Label>
           <select
-            id={`${idPrefix}workplace`}
+            id={`${uid}-workplace`}
             value={value.workplace}
             onChange={(event) => onChange({ ...value, workplace: event.target.value })}
             className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
@@ -71,9 +71,9 @@ export function FilterFields({
           </select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${idPrefix}employment`}>Employment</Label>
+          <Label htmlFor={`${uid}-employment`}>Employment</Label>
           <select
-            id={`${idPrefix}employment`}
+            id={`${uid}-employment`}
             value={value.employment}
             onChange={(event) => onChange({ ...value, employment: event.target.value })}
             className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
@@ -87,9 +87,9 @@ export function FilterFields({
           </select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${idPrefix}posted-after`}>Posted after</Label>
+          <Label htmlFor={`${uid}-posted-after`}>Posted after</Label>
           <Input
-            id={`${idPrefix}posted-after`}
+            id={`${uid}-posted-after`}
             type="date"
             value={value.postedAfter}
             onChange={(event) => onChange({ ...value, postedAfter: event.target.value })}
@@ -99,7 +99,7 @@ export function FilterFields({
       <CompanyCombobox
         selected={value.companies}
         onChange={(companies) => onChange({ ...value, companies })}
-        idPrefix={idPrefix}
+        idPrefix={`${uid}-`}
       />
     </>
   );

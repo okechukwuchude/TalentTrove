@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useId, useState } from 'react';
 import {
   type Routine,
   useCreateRoutine,
@@ -42,6 +42,7 @@ function fieldsFromRoutine(routine: Routine): FilterFieldsValue {
 }
 
 function RoutineCard({ routine }: { routine: Routine }) {
+  const uid = useId();
   const [editing, setEditing] = useState(false);
   const [fields, setFields] = useState<FilterFieldsValue>(() => fieldsFromRoutine(routine));
   const [judgePrompt, setJudgePrompt] = useState(routine.judgePrompt ?? '');
@@ -96,15 +97,15 @@ function RoutineCard({ routine }: { routine: Routine }) {
       {editing && (
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <FilterFields value={fields} onChange={setFields} idPrefix={`edit-${routine.name}-`} />
+            <FilterFields value={fields} onChange={setFields} />
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`judge-prompt-${routine.name}`}>Judge prompt (optional)</Label>
-              <Textarea id={`judge-prompt-${routine.name}`} value={judgePrompt} onChange={(event) => setJudgePrompt(event.target.value)} />
+              <Label htmlFor={`${uid}-judge-prompt`}>Judge prompt (optional)</Label>
+              <Textarea id={`${uid}-judge-prompt`} value={judgePrompt} onChange={(event) => setJudgePrompt(event.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`destination-tab-${routine.name}`}>File strong/fair matches into tab (optional)</Label>
+              <Label htmlFor={`${uid}-destination-tab`}>File strong/fair matches into tab (optional)</Label>
               <Input
-                id={`destination-tab-${routine.name}`}
+                id={`${uid}-destination-tab`}
                 value={destinationTab}
                 onChange={(event) => setDestinationTab(event.target.value)}
               />
@@ -174,7 +175,7 @@ function NewRoutineForm() {
         <Label htmlFor="new-routine-name">New routine name</Label>
         <Input id="new-routine-name" value={name} onChange={(event) => setName(event.target.value)} />
       </div>
-      <FilterFields value={fields} onChange={setFields} idPrefix="new-routine-" />
+      <FilterFields value={fields} onChange={setFields} />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="new-routine-judge-prompt">Judge prompt (optional — defaults to the standard judge prompt)</Label>
         <Textarea id="new-routine-judge-prompt" value={judgePrompt} onChange={(event) => setJudgePrompt(event.target.value)} />
