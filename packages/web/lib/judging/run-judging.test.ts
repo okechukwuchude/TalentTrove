@@ -7,6 +7,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 describe.skipIf(!testDatabaseUrl)('runJudging', () => {
   let authDb: typeof import('../auth-db.ts');
   let profileDb: typeof import('../profile-db.ts');
+  let routinesDb: typeof import('../routines-db.ts');
   let runJudging: typeof import('./run-judging.ts')['runJudging'];
   let sql: ReturnType<typeof postgres>;
 
@@ -15,6 +16,7 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     await runMigrations(testDatabaseUrl!);
     authDb = await import('../auth-db.ts');
     profileDb = await import('../profile-db.ts');
+    routinesDb = await import('../routines-db.ts');
     ({ runJudging } = await import('./run-judging.ts'));
     sql = postgres(testDatabaseUrl!);
   });
@@ -28,6 +30,7 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     delete process.env.OPENROUTER_API_KEY;
     delete process.env.JUDGE_MODEL;
     delete process.env.JUDGE_BATCH_SIZE;
+    await sql`delete from routines`;
     await sql`delete from judgments`;
     await sql`delete from postings`;
     await sql`delete from profile_documents`;
@@ -185,5 +188,130 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     expect(summary).toEqual([{ userId, judged: 2, failed: 0 }]);
     const rows = await sql`select * from judgments where user_id = ${userId}`;
     expect(rows).toHaveLength(2);
+  });
+
+  it('judges only postings matching a routine filter, using that routine prompt, when the account has one routine', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting({ title: 'Backend Engineer' });
+    const dataSciPostingId = await insertPosting({ title: 'Data Scientist' });
+    await sql`update postings set title = 'Data Scientist' where id = ${dataSciPostingId}`;
+    await routinesDb.createRoutine(userId, 'backend-only', { q: 'Backend Engineer' }, 'BACKEND PROMPT', null);
+    const capturedPrompts: string[] = [];
+
+    const summary = await runJudging(async (_apiKey, request) => {
+      capturedPrompts.push(request.systemPrompt);
+      return { verdict: 'fair', reasoning: 'ok' };
+    });
+
+    expect(summary).toEqual([{ userId, judged: 1, failed: 0 }]);
+    expect(capturedPrompts).toEqual(['BACKEND PROMPT']);
+  });
+
+  it('falls back to DEFAULT_JUDGE_PROMPT, not the account judge-prompt document, when a routine has no judgePrompt', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await profileDb.upsertTextDocument(userId, 'judge-prompt', 'ACCOUNT LEVEL OVERRIDE');
+    await insertPosting();
+    await routinesDb.createRoutine(userId, 'no-prompt', {}, null, null);
+    let capturedPrompt: string | undefined;
+
+    await runJudging(async (_apiKey, request) => {
+      capturedPrompt = request.systemPrompt;
+      return { verdict: 'fair', reasoning: 'ok' };
+    });
+
+    expect(capturedPrompt).not.toContain('ACCOUNT LEVEL OVERRIDE');
+  });
+
+  it('caps each routine at JUDGE_BATCH_SIZE independently', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting();
+    await insertPosting();
+    await insertPosting();
+    await routinesDb.createRoutine(userId, 'r1', {}, null, null);
+    await routinesDb.createRoutine(userId, 'r2', {}, null, null);
+    process.env.JUDGE_BATCH_SIZE = '2';
+
+    const summary = await runJudging(async () => ({ verdict: 'fair', reasoning: 'ok' }));
+
+    // r1 judges 2 (its own cap), leaving 1 unjudged posting for r2 to pick up (also capped at 2, but only 1 remains).
+    expect(summary).toEqual([{ userId, judged: 3, failed: 0 }]);
+  });
+
+  it('judges a posting matching two routines exactly once, by the first routine in creation order', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting({ title: 'Staff Engineer' });
+    await routinesDb.createRoutine(userId, 'first', {}, 'FIRST PROMPT', null);
+    await routinesDb.createRoutine(userId, 'second', {}, 'SECOND PROMPT', null);
+    const capturedPrompts: string[] = [];
+
+    const summary = await runJudging(async (_apiKey, request) => {
+      capturedPrompts.push(request.systemPrompt);
+      return { verdict: 'fair', reasoning: 'ok' };
+    });
+
+    expect(summary).toEqual([{ userId, judged: 1, failed: 0 }]);
+    expect(capturedPrompts).toEqual(['FIRST PROMPT']);
+  });
+
+  it('files a strong verdict into destinationTab, creating the tab if it does not exist', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting();
+    await routinesDb.createRoutine(userId, 'filed', {}, null, 'Backend Roles');
+
+    await runJudging(async () => ({ verdict: 'strong', reasoning: 'ok' }));
+
+    const tabRows = await sql`select id from tabs where user_id = ${userId} and name = 'Backend Roles'`;
+    expect(tabRows).toHaveLength(1);
+    const itemRows = await sql`select posting_id from tab_items where tab_id = ${tabRows[0]!.id}`;
+    expect(itemRows).toHaveLength(1);
+  });
+
+  it('does not file a weak verdict into destinationTab', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting();
+    await routinesDb.createRoutine(userId, 'filed', {}, null, 'Backend Roles');
+
+    await runJudging(async () => ({ verdict: 'weak', reasoning: 'ok' }));
+
+    const tabRows = await sql`select id from tabs where user_id = ${userId} and name = 'Backend Roles'`;
+    expect(tabRows).toHaveLength(0);
+  });
+
+  it('judges normally without filing when a routine has no destinationTab', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting();
+    await routinesDb.createRoutine(userId, 'unfiled', {}, null, null);
+
+    const summary = await runJudging(async () => ({ verdict: 'strong', reasoning: 'ok' }));
+
+    expect(summary).toEqual([{ userId, judged: 1, failed: 0 }]);
+    const tabRows = await sql`select id from tabs where user_id = ${userId}`;
+    expect(tabRows).toHaveLength(0);
+  });
+
+  it('does not stop other routines or other accounts when one routine throws', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    const otherUserId = await freshUserId();
+    await profileDb.upsertTextDocument(otherUserId, 'background', 'Data scientist.');
+    await insertPosting({ title: 'Broken Filter Target' });
+    await insertPosting({ title: 'Good Routine Target' });
+    await insertPosting({ title: 'Other Account Target' });
+    // An invalid stored filter (wrong shape) — buildSearchConditions/the query must not crash the whole run.
+    await sql`insert into routines (user_id, name, filters) values (${userId}, 'broken', ${sql.json({ postedAfter: { not: 'a string' } })})`;
+    await routinesDb.createRoutine(userId, 'good', {}, null, null);
+    await routinesDb.createRoutine(otherUserId, 'other', {}, null, null);
+
+    const summary = await runJudging(async () => ({ verdict: 'fair', reasoning: 'ok' }));
+
+    const otherSummary = summary.find((row) => row.userId === otherUserId);
+    expect(otherSummary?.judged).toBeGreaterThan(0);
   });
 });

@@ -4,7 +4,10 @@ import { closeDb, getDb } from '../db.ts';
 import { judgments, postings, profileDocuments, users } from '../../db/schema.ts';
 import { callJudgeModel } from './openrouter.ts';
 import { parseResumePdf } from '../pdf.ts';
-import { DEFAULT_JUDGE_PROMPT, JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES } from '@pinloop/shared';
+import { DEFAULT_JUDGE_PROMPT, JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES, VERDICTS, rankOf } from '@pinloop/shared';
+import { listRoutines } from '../routines-db.ts';
+import { buildSearchConditions, type RoutineFilters } from '../postings-search.ts';
+import { findTabByName, createTab, addPostingsToTab } from '../tabs-db.ts';
 
 export type JudgingSummary = { userId: string; judged: number; failed: number };
 
@@ -12,6 +15,9 @@ type ProfileDocRow = typeof profileDocuments.$inferSelect;
 type PostingRow = typeof postings.$inferSelect;
 
 const DEFAULT_BATCH_SIZE = 25;
+
+const ROUTINE_MIN_VERDICT = 'fair';
+const ROUTINE_FILE_VERDICTS = VERDICTS.filter((verdict) => rankOf(verdict) >= rankOf(ROUTINE_MIN_VERDICT));
 
 /**
  * Reserved names that must never appear as a labelled document in the text
@@ -96,6 +102,66 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
       // verdict with no basis (and, since re-judging is out of scope, that
       // bad verdict is permanent). Gate on the text actually having content.
       if (!profileText.trim()) continue;
+
+      const accountRoutines = await listRoutines(account.id);
+
+      if (accountRoutines.length > 0) {
+        let judged = 0;
+        let failed = 0;
+        for (const routine of accountRoutines) {
+          try {
+            const routineFilters = routine.filters as RoutineFilters;
+            const conditions = buildSearchConditions(routineFilters);
+            const candidates = await getDb()
+              .select({ posting: postings })
+              .from(postings)
+              .leftJoin(judgments, and(eq(judgments.postingId, postings.id), eq(judgments.userId, account.id)))
+              .where(and(isNull(judgments.id), ...conditions))
+              .orderBy(asc(postings.createdAt))
+              .limit(limit);
+
+            const systemPrompt = routine.judge_prompt?.trim() ? routine.judge_prompt : DEFAULT_JUDGE_PROMPT;
+
+            for (const { posting } of candidates) {
+              try {
+                const result = await callModel(apiKey, {
+                  model,
+                  systemPrompt,
+                  postingText: buildPostingText(posting),
+                  profileText,
+                });
+                if ('error' in result) {
+                  console.error(`judge: user ${account.id} routine ${routine.name} posting ${posting.id} failed: ${result.error}`);
+                  failed += 1;
+                  continue;
+                }
+                await getDb()
+                  .insert(judgments)
+                  .values({ userId: account.id, postingId: posting.id, verdict: result.verdict, reasoning: result.reasoning, model })
+                  .onConflictDoNothing();
+                judged += 1;
+
+                if (routine.destination_tab && ROUTINE_FILE_VERDICTS.includes(result.verdict as (typeof VERDICTS)[number])) {
+                  let tab = await findTabByName(account.id, routine.destination_tab);
+                  if (!tab) {
+                    await createTab(account.id, routine.destination_tab, null);
+                    tab = await findTabByName(account.id, routine.destination_tab);
+                  }
+                  if (tab) await addPostingsToTab(account.id, tab.id, [posting.id]);
+                }
+              } catch (error) {
+                console.error(`judge: user ${account.id} routine ${routine.name} posting ${posting.id} threw`, error);
+                failed += 1;
+              }
+            }
+          } catch (error) {
+            console.error(`judge: user ${account.id} routine ${routine.name} threw`, error);
+            failed += 1;
+          }
+        }
+        summaries.push({ userId: account.id, judged, failed });
+        continue;
+      }
 
       const candidates = await getDb()
         .select({ posting: postings })
