@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ashbyAdapter } from './ashby.ts';
+import * as settingsDb from '../settings-db.ts';
+
+vi.mock('../settings-db.ts', () => ({
+  getSetting: vi.fn().mockResolvedValue(null),
+}));
 
 describe('ashbyAdapter', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.mocked(settingsDb.getSetting).mockReset().mockResolvedValue(null);
     delete process.env.ASHBY_COMPANIES;
   });
 
@@ -54,6 +60,22 @@ describe('ashbyAdapter', () => {
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.ashbyhq.com/posting-api/job-board/acme',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+  });
+
+  it('prefers a DB-stored company list over the env var', async () => {
+    process.env.ASHBY_COMPANIES = 'env-token:Env Co';
+    vi.mocked(settingsDb.getSetting).mockImplementation(async (key: string) =>
+      key === 'ashby_companies' ? 'db-token:DB Co' : null,
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ jobs: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await ashbyAdapter.fetchPostings();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.ashbyhq.com/posting-api/job-board/db-token',
       expect.objectContaining({ signal: expect.anything() }),
     );
   });
