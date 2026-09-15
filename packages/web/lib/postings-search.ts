@@ -14,6 +14,8 @@ export type SearchFilters = {
   unjudged?: boolean;
 };
 
+export type RoutineFilters = Omit<SearchFilters, 'unjudged'>;
+
 export type CompanyRow = { id: string; name: string; posting_count: number };
 
 type PostingRow = typeof postings.$inferSelect;
@@ -66,28 +68,9 @@ function decodeCursor(cursor: string): { sortKey: string; id: string } | null {
   }
 }
 
-export async function searchPostings(
-  userId: string,
-  filters: SearchFilters,
-  limit: number,
-  cursor: string | null,
-): Promise<{ rows: PostingJson[]; cursor: string | null }> {
+export function buildSearchConditions(filters: SearchFilters) {
   const hasQuery = Boolean(filters.q && filters.q.trim());
   const q = filters.q?.trim() ?? '';
-  // NOTE (deviation from brief): only build a real `ts_rank(...,
-  // plainto_tsquery(...))` expression when there is an actual query — it is
-  // always selected as a column (see `.select({ row, rank: rankExpr })`
-  // below), so with the brief's unconditional version, every no-query call
-  // ran `plainto_tsquery('english', '')` on every row and postgres emitted a
-  // `text-search query doesn't contain lexemes: ""` NOTICE per query,
-  // spamming stdout in tests and (per this repo's own convention of
-  // pristine, piggable stdout/stderr) in the CLI/server too. A cheap
-  // constant keeps the shared `{ row, rank }` shape without ever invoking
-  // `plainto_tsquery` when it isn't needed.
-  const rankExpr = hasQuery
-    ? sql<number>`ts_rank(to_tsvector('english', ${postings.title} || ' ' || ${postings.company}), plainto_tsquery('english', ${q}))`
-    : sql<number>`0`;
-
   const conditions = [];
   if (hasQuery) {
     conditions.push(
@@ -162,6 +145,32 @@ export async function searchPostings(
   if (filters.unjudged) {
     conditions.push(isNull(judgments.id));
   }
+  return conditions;
+}
+
+export async function searchPostings(
+  userId: string,
+  filters: SearchFilters,
+  limit: number,
+  cursor: string | null,
+): Promise<{ rows: PostingJson[]; cursor: string | null }> {
+  const hasQuery = Boolean(filters.q && filters.q.trim());
+  const q = filters.q?.trim() ?? '';
+  // NOTE (deviation from brief): only build a real `ts_rank(...,
+  // plainto_tsquery(...))` expression when there is an actual query — it is
+  // always selected as a column (see `.select({ row, rank: rankExpr })`
+  // below), so with the brief's unconditional version, every no-query call
+  // ran `plainto_tsquery('english', '')` on every row and postgres emitted a
+  // `text-search query doesn't contain lexemes: ""` NOTICE per query,
+  // spamming stdout in tests and (per this repo's own convention of
+  // pristine, piggable stdout/stderr) in the CLI/server too. A cheap
+  // constant keeps the shared `{ row, rank }` shape without ever invoking
+  // `plainto_tsquery` when it isn't needed.
+  const rankExpr = hasQuery
+    ? sql<number>`ts_rank(to_tsvector('english', ${postings.title} || ' ' || ${postings.company}), plainto_tsquery('english', ${q}))`
+    : sql<number>`0`;
+
+  const conditions = buildSearchConditions(filters);
 
   const decoded = cursor ? decodeCursor(cursor) : null;
   if (cursor && !decoded) return { rows: [], cursor: null };
