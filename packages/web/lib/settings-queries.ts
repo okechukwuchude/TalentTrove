@@ -1,8 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { SettingItem } from './settings-registry.ts';
 
-export type SettingItem = { key: string; label: string; secret: boolean; value: string | null; isSet: boolean };
+export type { SettingItem } from './settings-registry.ts';
 
 type SettingsResponse = { items: SettingItem[] };
 
