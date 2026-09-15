@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adzunaAdapter } from './adzuna.ts';
+import * as settingsDb from '../settings-db.ts';
+
+vi.mock('../settings-db.ts', () => ({
+  getSetting: vi.fn().mockResolvedValue(null),
+  getSecretSetting: vi.fn().mockResolvedValue(null),
+}));
 
 describe('adzunaAdapter', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.mocked(settingsDb.getSetting).mockReset().mockResolvedValue(null);
+    vi.mocked(settingsDb.getSecretSetting).mockReset().mockResolvedValue(null);
     delete process.env.ADZUNA_APP_ID;
     delete process.env.ADZUNA_APP_KEY;
     delete process.env.ADZUNA_COUNTRIES;
@@ -61,6 +69,32 @@ describe('adzunaAdapter', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/jobs/us/search/1'),
       expect.objectContaining({ signal: expect.anything() }),
+    );
+  });
+
+  it('prefers DB-stored settings over env vars', async () => {
+    process.env.ADZUNA_APP_ID = 'env-id';
+    process.env.ADZUNA_APP_KEY = 'env-key';
+    process.env.ADZUNA_COUNTRIES = 'gb';
+    process.env.ADZUNA_QUERIES = 'env query';
+    vi.mocked(settingsDb.getSecretSetting).mockImplementation(async (key: string) => {
+      if (key === 'adzuna_app_id') return 'db-id';
+      if (key === 'adzuna_app_key') return 'db-key';
+      return null;
+    });
+    vi.mocked(settingsDb.getSetting).mockImplementation(async (key: string) => {
+      if (key === 'adzuna_countries') return 'us';
+      if (key === 'adzuna_queries') return 'db query';
+      return null;
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await adzunaAdapter.fetchPostings();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/jobs/us/search/1?app_id=db-id&app_key=db-key&what=db%20query'),
+      expect.anything(),
     );
   });
 });

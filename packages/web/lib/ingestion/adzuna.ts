@@ -1,5 +1,6 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
 import { normalizeCountry } from './shared.ts';
+import { getSecretSetting, getSetting } from '../settings-db.ts';
 
 const ADZUNA_ENDPOINT = 'https://api.adzuna.com/v1/api/jobs';
 
@@ -42,10 +43,12 @@ function mapJob(job: AdzunaJob, countryCode: string): RawPosting | null {
 }
 
 async function fetchPostings(): Promise<RawPosting[]> {
-  const appId = process.env.ADZUNA_APP_ID;
-  const appKey = process.env.ADZUNA_APP_KEY;
-  const countries = process.env.ADZUNA_COUNTRIES?.split(',').map((code) => code.trim().toLowerCase()).filter(Boolean) ?? [];
-  const queries = process.env.ADZUNA_QUERIES?.split(',').map((query) => query.trim()).filter(Boolean) ?? [];
+  const appId = (await getSecretSetting('adzuna_app_id')) ?? process.env.ADZUNA_APP_ID;
+  const appKey = (await getSecretSetting('adzuna_app_key')) ?? process.env.ADZUNA_APP_KEY;
+  const countriesRaw = (await getSetting('adzuna_countries')) ?? process.env.ADZUNA_COUNTRIES;
+  const queriesRaw = (await getSetting('adzuna_queries')) ?? process.env.ADZUNA_QUERIES;
+  const countries = countriesRaw?.split(',').map((code) => code.trim().toLowerCase()).filter(Boolean) ?? [];
+  const queries = queriesRaw?.split(',').map((query) => query.trim()).filter(Boolean) ?? [];
   if (!appId || !appKey || countries.length === 0 || queries.length === 0) return [];
 
   const results: RawPosting[] = [];
