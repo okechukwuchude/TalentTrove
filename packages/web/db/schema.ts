@@ -141,3 +141,19 @@ export const applications = pgTable(
   },
   (table) => [uniqueIndex('applications_user_id_posting_id_key').on(table.userId, table.postingId)],
 );
+
+export const routines = pgTable(
+  'routines',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    filters: jsonb('filters').notNull(),
+    judgePrompt: text('judge_prompt'),
+    destinationTab: text('destination_tab'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('routines_user_id_name_key').on(table.userId, table.name)],
+);

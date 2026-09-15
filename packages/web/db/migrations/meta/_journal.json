@@ -50,6 +50,13 @@
       "when": 1789459551953,
       "tag": "0006_bouncy_namorita",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789484035674,
+      "tag": "0007_right_sabretooth",
+      "breakpoints": true
     }
   ]
 }

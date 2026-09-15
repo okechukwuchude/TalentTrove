@@ -120,4 +120,18 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     `;
     expect(indexes).toHaveLength(1);
   });
+
+  it('creates the routines table', async () => {
+    const tables = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public' and table_name = 'routines'
+    `;
+    expect(tables).toHaveLength(1);
+
+    const indexes = await sql<{ indexname: string }[]>`
+      select indexname from pg_indexes
+      where schemaname = 'public' and tablename = 'routines' and indexname = 'routines_user_id_name_key'
+    `;
+    expect(indexes).toHaveLength(1);
+  });
 });
