@@ -194,8 +194,7 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     const userId = await freshUserId();
     await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
     await insertPosting({ title: 'Backend Engineer' });
-    const dataSciPostingId = await insertPosting({ title: 'Data Scientist' });
-    await sql`update postings set title = 'Data Scientist' where id = ${dataSciPostingId}`;
+    await insertPosting({ title: 'Data Scientist' });
     await routinesDb.createRoutine(userId, 'backend-only', { q: 'Backend Engineer' }, 'BACKEND PROMPT', null);
     const capturedPrompts: string[] = [];
 
@@ -304,13 +303,26 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     await insertPosting({ title: 'Broken Filter Target' });
     await insertPosting({ title: 'Good Routine Target' });
     await insertPosting({ title: 'Other Account Target' });
-    // An invalid stored filter (wrong shape) — buildSearchConditions/the query must not crash the whole run.
-    await sql`insert into routines (user_id, name, filters) values (${userId}, 'broken', ${sql.json({ postedAfter: { not: 'a string' } })})`;
+    // A stored filter shape that makes buildSearchConditions itself throw at
+    // the JS level: its very first statement is
+    // `Boolean(filters.q && filters.q.trim())` (postings-search.ts), which
+    // calls `.trim()` unconditionally once `filters.q` is truthy. A non-string
+    // `q` (a number, here) is truthy but has no `.trim` method, so this throws
+    // a TypeError synchronously, before any DB query runs — verified by
+    // reading buildSearchConditions's source rather than assumed.
+    await sql`insert into routines (user_id, name, filters) values (${userId}, 'broken', ${sql.json({ q: 123 })})`;
     await routinesDb.createRoutine(userId, 'good', {}, null, null);
     await routinesDb.createRoutine(otherUserId, 'other', {}, null, null);
 
     const summary = await runJudging(async () => ({ verdict: 'fair', reasoning: 'ok' }));
 
+    // The broken routine's per-routine try/catch must record its own throw as
+    // a failure, without preventing the account's other routine ('good') from
+    // judging normally.
+    const brokenUserSummary = summary.find((row) => row.userId === userId);
+    expect(brokenUserSummary?.failed).toBeGreaterThan(0);
+    expect(brokenUserSummary?.judged).toBeGreaterThan(0);
+    // The other account's routine must be unaffected entirely.
     const otherSummary = summary.find((row) => row.userId === otherUserId);
     expect(otherSummary?.judged).toBeGreaterThan(0);
   });
