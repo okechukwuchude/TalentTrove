@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Badge } from './ui/badge.tsx';
+import { Button } from './ui/button.tsx';
 import { Card, CardContent, CardHeader } from './ui/card.tsx';
 import type { Posting } from '../lib/posting.ts';
 
@@ -41,6 +42,26 @@ export function PostingCard({ posting, actions }: { posting: Posting; actions?: 
           >
             Download tailored resume
           </a>
+        )}
+        {posting.cover_letter && (
+          <div className="basis-full">
+            <p className="text-sm font-medium">Cover letter</p>
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground">{posting.cover_letter}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-1"
+              onClick={() => {
+                // navigator.clipboard is unavailable in some contexts (non-HTTPS
+                // origins, some test/embedded environments) — no-op rather than
+                // throw; there is no polyfill for this.
+                navigator.clipboard?.writeText(posting.cover_letter ?? '');
+              }}
+            >
+              Copy
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>

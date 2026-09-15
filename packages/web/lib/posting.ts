@@ -12,6 +12,7 @@ export type Posting = {
   verdict?: string;
   verdict_reasoning?: string;
   has_tailored_resume?: boolean;
+  cover_letter?: string;
 };
 
 export function asPosting(row: Record<string, unknown>): Posting {
@@ -29,5 +30,6 @@ export function asPosting(row: Record<string, unknown>): Posting {
     verdict: typeof row['verdict'] === 'string' ? row['verdict'] : undefined,
     verdict_reasoning: typeof row['verdict_reasoning'] === 'string' ? row['verdict_reasoning'] : undefined,
     has_tailored_resume: row['has_tailored_resume'] === true ? true : undefined,
+    cover_letter: typeof row['cover_letter'] === 'string' ? row['cover_letter'] : undefined,
   };
 }

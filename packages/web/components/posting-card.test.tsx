@@ -55,4 +55,14 @@ describe('PostingCard', () => {
     const link = screen.getByRole('link', { name: 'Download tailored resume' });
     expect(link).toHaveAttribute('href', `/api/tailored-resumes/${posting.id}`);
   });
+
+  it('shows the cover letter with a copy button only when the posting carries one', () => {
+    const { rerender } = render(<PostingCard posting={posting} />);
+    expect(screen.queryByText('Cover letter')).not.toBeInTheDocument();
+
+    rerender(<PostingCard posting={{ ...posting, cover_letter: 'Dear Hiring Manager, I am excited...' }} />);
+    expect(screen.getByText('Cover letter')).toBeInTheDocument();
+    expect(screen.getByText('Dear Hiring Manager, I am excited...')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+  });
 });
