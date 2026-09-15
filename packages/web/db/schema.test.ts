@@ -134,4 +134,19 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     `;
     expect(indexes).toHaveLength(1);
   });
+
+  it('creates the app_settings table', async () => {
+    const tables = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public' and table_name = 'app_settings'
+    `;
+    expect(tables).toHaveLength(1);
+
+    const columns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'app_settings'
+      order by column_name
+    `;
+    expect(columns.map((c) => c.column_name).sort()).toEqual(['key', 'updated_at', 'value']);
+  });
 });
