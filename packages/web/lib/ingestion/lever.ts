@@ -1,5 +1,6 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
 import { countryFromLocation, normalizeCountry, parseCompanyList } from './shared.ts';
+import { getSetting } from '../settings-db.ts';
 
 type LeverPosting = {
   text?: string;
@@ -45,7 +46,8 @@ function mapJob(job: LeverPosting, company: string): RawPosting | null {
 }
 
 async function fetchPostings(): Promise<RawPosting[]> {
-  const companies = parseCompanyList(process.env.LEVER_COMPANIES);
+  const raw = (await getSetting('lever_companies')) ?? process.env.LEVER_COMPANIES;
+  const companies = parseCompanyList(raw);
   if (companies.length === 0) return [];
 
   const results: RawPosting[] = [];

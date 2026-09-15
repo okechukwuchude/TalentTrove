@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { leverAdapter } from './lever.ts';
+import * as settingsDb from '../settings-db.ts';
+
+vi.mock('../settings-db.ts', () => ({
+  getSetting: vi.fn().mockResolvedValue(null),
+}));
 
 describe('leverAdapter', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.mocked(settingsDb.getSetting).mockReset().mockResolvedValue(null);
     delete process.env.LEVER_COMPANIES;
   });
 
@@ -51,6 +57,22 @@ describe('leverAdapter', () => {
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.lever.co/v0/postings/acme?mode=json',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+  });
+
+  it('prefers a DB-stored company list over the env var', async () => {
+    process.env.LEVER_COMPANIES = 'env-token:Env Co';
+    vi.mocked(settingsDb.getSetting).mockImplementation(async (key: string) =>
+      key === 'lever_companies' ? 'db-token:DB Co' : null,
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [] });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await leverAdapter.fetchPostings();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.lever.co/v0/postings/db-token?mode=json',
       expect.objectContaining({ signal: expect.anything() }),
     );
   });
