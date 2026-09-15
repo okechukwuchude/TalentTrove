@@ -10,9 +10,11 @@ type SelectedCompany = { id: string; name: string };
 export function CompanyCombobox({
   selected,
   onChange,
+  idPrefix = '',
 }: {
   selected: SelectedCompany[];
   onChange: (next: SelectedCompany[]) => void;
+  idPrefix?: string;
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -71,17 +73,17 @@ export function CompanyCombobox({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor="company-search" className="text-sm font-medium">
+      <label htmlFor={`${idPrefix}company-search`} className="text-sm font-medium">
         Company
       </label>
       <div className="relative">
         <Input
-          id="company-search"
+          id={`${idPrefix}company-search`}
           role="combobox"
           aria-expanded={open}
-          aria-controls="company-listbox"
+          aria-controls={`${idPrefix}company-listbox`}
           aria-autocomplete="list"
-          aria-activedescendant={activeOption ? `company-option-${activeOption.id}` : undefined}
+          aria-activedescendant={activeOption ? `${idPrefix}company-option-${activeOption.id}` : undefined}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -98,14 +100,14 @@ export function CompanyCombobox({
         />
         {open && availableSuggestions.length > 0 && (
           <ul
-            id="company-listbox"
+            id={`${idPrefix}company-listbox`}
             role="listbox"
             className="absolute z-10 mt-1 w-full rounded-md border bg-card shadow-md"
           >
             {availableSuggestions.map((company, index) => (
               <li
                 key={company.id}
-                id={`company-option-${company.id}`}
+                id={`${idPrefix}company-option-${company.id}`}
                 role="option"
                 aria-selected={index === activeIndex}
                 className={`cursor-pointer px-3 py-1.5 text-sm hover:bg-accent ${

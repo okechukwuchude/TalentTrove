@@ -130,18 +130,17 @@ describe('RoutinesView', () => {
     const card = screen.getByRole('button', { name: 'Edit' }).closest('.rounded-lg') as HTMLElement;
     fireEvent.click(within(card).getByRole('button', { name: 'Edit' }));
 
-    // FilterFields (Task 6) uses fixed, non-namespaced ids (search-words,
-    // country, workplace, employment, posted-after) for its inputs, so with
-    // the always-mounted NewRoutineForm's FilterFields also on the page, the
-    // document has duplicate ids. getByLabelText resolves a label's "for" via
-    // a document-wide id lookup, which breaks under duplicate ids even when
-    // the query is scoped with within(). Querying the card's own DOM subtree
-    // directly sidesteps that and reliably finds the card's own inputs.
-    expect((card.querySelector('#search-words') as HTMLInputElement).value).toBe('staff engineer');
-    expect((card.querySelector('#country') as HTMLInputElement).value).toBe('US');
-    expect((card.querySelector('#workplace') as HTMLSelectElement).value).toBe('remote');
-    expect((card.querySelector('#employment') as HTMLSelectElement).value).toBe('full-time');
-    expect((card.querySelector('#posted-after') as HTMLInputElement).value).toBe('2024-01-01');
+    // FilterFields/CompanyCombobox now take an idPrefix (routines-view.tsx
+    // passes a distinct one per mounted instance: "new-routine-" for the
+    // always-present create form, "edit-<routine name>-" for each card's
+    // edit form), so every id on the page is unique even with the create
+    // form and an edit form mounted at once. getByLabelText can therefore
+    // resolve each field correctly, scoped to the card, with no workaround.
+    expect(within(card).getByLabelText('Search words')).toHaveValue('staff engineer');
+    expect(within(card).getByLabelText('Country')).toHaveValue('US');
+    expect(within(card).getByLabelText('Workplace')).toHaveValue('remote');
+    expect(within(card).getByLabelText('Employment')).toHaveValue('full-time');
+    expect(within(card).getByLabelText('Posted after')).toHaveValue('2024-01-01');
     expect(within(card).getByText('Acme')).toBeInTheDocument();
     expect(within(card).getByText('Globex')).toBeInTheDocument();
     expect(within(card).getByLabelText('Judge prompt (optional)')).toHaveValue('strong signal only');

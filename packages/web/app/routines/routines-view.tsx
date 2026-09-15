@@ -96,7 +96,7 @@ function RoutineCard({ routine }: { routine: Routine }) {
       {editing && (
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <FilterFields value={fields} onChange={setFields} />
+            <FilterFields value={fields} onChange={setFields} idPrefix={`edit-${routine.name}-`} />
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`judge-prompt-${routine.name}`}>Judge prompt (optional)</Label>
               <Textarea id={`judge-prompt-${routine.name}`} value={judgePrompt} onChange={(event) => setJudgePrompt(event.target.value)} />
@@ -174,7 +174,7 @@ function NewRoutineForm() {
         <Label htmlFor="new-routine-name">New routine name</Label>
         <Input id="new-routine-name" value={name} onChange={(event) => setName(event.target.value)} />
       </div>
-      <FilterFields value={fields} onChange={setFields} />
+      <FilterFields value={fields} onChange={setFields} idPrefix="new-routine-" />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="new-routine-judge-prompt">Judge prompt (optional — defaults to the standard judge prompt)</Label>
         <Textarea id="new-routine-judge-prompt" value={judgePrompt} onChange={(event) => setJudgePrompt(event.target.value)} />
