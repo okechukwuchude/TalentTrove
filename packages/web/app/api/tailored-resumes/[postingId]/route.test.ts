@@ -76,8 +76,8 @@ describe.skipIf(!testDatabaseUrl)('/api/tailored-resumes/[postingId]', () => {
     const otherUser = await authDb.createUser(`${crypto.randomUUID()}@example.com`, 'hashed-password');
     const postingId = await insertPosting();
     await sql`
-      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
-      values (${otherUser.id}, ${postingId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, cover_letter, model)
+      values (${otherUser.id}, ${postingId}, ${Buffer.from('%PDF-fake')}, ${'test cover letter'}, 'test/model')
     `;
 
     const response = await route.GET(
@@ -91,8 +91,8 @@ describe.skipIf(!testDatabaseUrl)('/api/tailored-resumes/[postingId]', () => {
     const { userId, cookie } = await signedInUser();
     const postingId = await insertPosting();
     await sql`
-      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
-      values (${userId}, ${postingId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, cover_letter, model)
+      values (${userId}, ${postingId}, ${Buffer.from('%PDF-fake')}, ${'test cover letter'}, 'test/model')
     `;
 
     const response = await route.GET(

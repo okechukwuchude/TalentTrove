@@ -148,8 +148,8 @@ describe.skipIf(!testDatabaseUrl)('tabs-db', () => {
     const tab = await tabsDb.findTabByName(userId, 'shortlist');
     await tabsDb.addPostingsToTab(userId, tab!.id, [postingId]);
     await sql`
-      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
-      values (${userId}, ${postingId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, cover_letter, model)
+      values (${userId}, ${postingId}, ${Buffer.from('%PDF-fake')}, ${'test cover letter'}, 'test/model')
     `;
 
     const page = await tabsDb.getTabContents(userId, tab!.id, 20, null);

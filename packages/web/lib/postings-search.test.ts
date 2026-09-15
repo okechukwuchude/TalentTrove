@@ -160,8 +160,8 @@ describe.skipIf(!testDatabaseUrl)('postings-search', () => {
     await insertPosting({ title: 'Not tailored', url: 'https://example.com/jobs/not-tailored-1' });
     const tailoredId = (await sql<{ id: string }[]>`select id from postings where title = 'Tailored'`)[0]!.id;
     await sql`
-      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
-      values (${userId}, ${tailoredId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, cover_letter, model)
+      values (${userId}, ${tailoredId}, ${Buffer.from('%PDF-fake')}, ${'test cover letter'}, 'test/model')
     `;
 
     const result = await searchPostings(userId, {}, 20, null);
@@ -178,8 +178,8 @@ describe.skipIf(!testDatabaseUrl)('postings-search', () => {
     await insertPosting({ title: 'Match' });
     const postingId = (await sql<{ id: string }[]>`select id from postings where title = 'Match'`)[0]!.id;
     await sql`
-      insert into tailored_resumes (user_id, posting_id, pdf_bytes, model)
-      values (${otherUserId}, ${postingId}, ${Buffer.from('%PDF-fake')}, 'test/model')
+      insert into tailored_resumes (user_id, posting_id, pdf_bytes, cover_letter, model)
+      values (${otherUserId}, ${postingId}, ${Buffer.from('%PDF-fake')}, ${'test cover letter'}, 'test/model')
     `;
 
     const result = await searchPostings(userId, {}, 20, null);
