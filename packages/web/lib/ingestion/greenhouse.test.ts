@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { greenhouseAdapter } from './greenhouse.ts';
+import * as settingsDb from '../settings-db.ts';
+
+vi.mock('../settings-db.ts', () => ({
+  getSetting: vi.fn().mockResolvedValue(null),
+}));
 
 describe('greenhouseAdapter', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.mocked(settingsDb.getSetting).mockReset().mockResolvedValue(null);
     delete process.env.GREENHOUSE_COMPANIES;
   });
 
@@ -108,5 +114,21 @@ describe('greenhouseAdapter', () => {
 
     expect(row!.country).toBe('United States');
     expect(row!.workplace).toBe('remote');
+  });
+
+  it('prefers a DB-stored company list over the env var', async () => {
+    process.env.GREENHOUSE_COMPANIES = 'env-token:Env Co';
+    vi.mocked(settingsDb.getSetting).mockImplementation(async (key: string) =>
+      key === 'greenhouse_companies' ? 'db-token:DB Co' : null,
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ jobs: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await greenhouseAdapter.fetchPostings();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://boards-api.greenhouse.io/v1/boards/db-token/jobs?content=true',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
   });
 });
