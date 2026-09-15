@@ -1,4 +1,4 @@
-﻿const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 const KNOWN_SECTIONS = ['summary', 'skills', 'experience', 'education'] as const;
 

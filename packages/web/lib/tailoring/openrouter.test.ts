@@ -1,4 +1,4 @@
-﻿import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractStyleProfile, tailorResumeContent } from './openrouter.ts';
 
 function toolCallResponse(toolName: string, args: Record<string, unknown>) {
