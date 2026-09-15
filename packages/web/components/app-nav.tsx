@@ -25,6 +25,9 @@ export function AppNav({ signedIn, email }: { signedIn: boolean; email?: string 
             <Link href="/profile" className="hover:underline">
               Profile
             </Link>
+            <Link href="/settings" className="hover:underline">
+              Settings
+            </Link>
             {email && <span className="text-muted-foreground">{email}</span>}
             <SignOutButton />
           </nav>

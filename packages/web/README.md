@@ -30,7 +30,8 @@ error, so you only need to configure the sources you actually want.
   key for the [JSearch API](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch))
   and `JSEARCH_QUERIES`, a comma-separated list of search terms, e.g.
   `JSEARCH_QUERIES=staff software engineer,senior backend engineer`. One
-  request is made per query.
+  request is made per query. `JSEARCH_COUNTRY` (optional, a two-letter
+  code, e.g. `us`) scopes every query to that country.
 - **Adzuna** (a second aggregator, different coverage mix):
   `ADZUNA_APP_ID`/`ADZUNA_APP_KEY` (from
   [developer.adzuna.com](https://developer.adzuna.com/)), plus
@@ -49,6 +50,15 @@ error, so you only need to configure the sources you actually want.
   is usually not what you want since a token is rarely how a company's
   name should read in search results. Example:
   `GREENHOUSE_COMPANIES=stripe:Stripe,figma:Figma`.
+
+All of the above (except the ATS company lists' underlying tokens, which
+are just what a company's own careers-board URL uses) can also be set from
+the running app at `/settings`, instead of editing these env vars — any
+signed-in account can view/edit them there, since ingestion is a single
+instance-wide job, not scoped per account. A value saved from `/settings`
+overrides its matching env var here; clearing it in the app (saving it
+blank) reverts to whatever's in the env var, if anything. API keys saved
+from `/settings` are encrypted at rest before being stored.
 
 Ingestion runs two ways:
 
