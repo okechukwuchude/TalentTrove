@@ -1,5 +1,6 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
 import { normalizeCountry } from './shared.ts';
+import { getSecretSetting, getSetting } from '../settings-db.ts';
 
 const JSEARCH_ENDPOINT = 'https://jsearch.p.rapidapi.com/search';
 
@@ -49,13 +50,16 @@ function mapJob(job: JSearchJob): RawPosting | null {
 }
 
 async function fetchPostings(): Promise<RawPosting[]> {
-  const apiKey = process.env.JSEARCH_API_KEY;
-  const queries = process.env.JSEARCH_QUERIES?.split(',').map((query) => query.trim()).filter(Boolean) ?? [];
+  const apiKey = (await getSecretSetting('jsearch_api_key')) ?? process.env.JSEARCH_API_KEY;
+  const queriesRaw = (await getSetting('jsearch_queries')) ?? process.env.JSEARCH_QUERIES;
+  const country = (await getSetting('jsearch_country')) ?? process.env.JSEARCH_COUNTRY;
+  const queries = queriesRaw?.split(',').map((query) => query.trim()).filter(Boolean) ?? [];
   if (!apiKey || queries.length === 0) return [];
 
   const results: RawPosting[] = [];
   for (const query of queries) {
-    const url = `${JSEARCH_ENDPOINT}?query=${encodeURIComponent(query)}&num_pages=1`;
+    const countryParam = country ? `&country=${encodeURIComponent(country)}` : '';
+    const url = `${JSEARCH_ENDPOINT}?query=${encodeURIComponent(query)}&num_pages=1${countryParam}`;
     const response = await fetch(url, {
       headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'jsearch.p.rapidapi.com' },
       signal: AbortSignal.timeout(15_000),
