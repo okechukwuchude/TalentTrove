@@ -2,7 +2,12 @@ import type { IngestionAdapter, RawPosting } from './types.ts';
 import { normalizeCountry } from './shared.ts';
 import { getSecretSetting, getSetting } from '../settings-db.ts';
 
-const JSEARCH_ENDPOINT = 'https://jsearch.p.rapidapi.com/search';
+// RapidAPI's JSearch retired the original `/search` endpoint (it now 404s
+// with "Endpoint '/search' does not exist") in favor of `/search-v2` —
+// confirmed by hand against the live API. The job fields themselves
+// (job_title, employer_name, etc.) are unchanged, but the envelope changed
+// from `{ data: JSearchJob[] }` to `{ data: { jobs: JSearchJob[] } }`.
+const JSEARCH_ENDPOINT = 'https://jsearch.p.rapidapi.com/search-v2';
 
 type JSearchJob = {
   job_title?: string;
@@ -68,8 +73,8 @@ async function fetchPostings(): Promise<RawPosting[]> {
       console.error(`jsearch: query "${query}" failed with ${response.status}`);
       continue;
     }
-    const body = (await response.json()) as { data?: JSearchJob[] };
-    for (const job of body.data ?? []) {
+    const body = (await response.json()) as { data?: { jobs?: JSearchJob[] } };
+    for (const job of body.data?.jobs ?? []) {
       const mapped = mapJob(job);
       if (mapped) results.push(mapped);
     }

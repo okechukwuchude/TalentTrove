@@ -31,20 +31,22 @@ describe('jsearchAdapter', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        data: [
-          {
-            job_title: 'Staff Software Engineer',
-            employer_name: 'Acme Corp',
-            job_city: 'Remote',
-            job_country: 'US',
-            job_is_remote: true,
-            job_employment_type: 'FULLTIME',
-            job_posted_at_datetime_utc: '2026-09-01T00:00:00.000Z',
-            job_apply_link: 'https://example.com/jobs/jsearch-1',
-            job_description: 'We need a strong backend engineer with 5+ years experience.',
-          },
-          { job_title: 'Missing company and link' },
-        ],
+        data: {
+          jobs: [
+            {
+              job_title: 'Staff Software Engineer',
+              employer_name: 'Acme Corp',
+              job_city: 'Remote',
+              job_country: 'US',
+              job_is_remote: true,
+              job_employment_type: 'FULLTIME',
+              job_posted_at_datetime_utc: '2026-09-01T00:00:00.000Z',
+              job_apply_link: 'https://example.com/jobs/jsearch-1',
+              job_description: 'We need a strong backend engineer with 5+ years experience.',
+            },
+            { job_title: 'Missing company and link' },
+          ],
+        },
       }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -75,7 +77,7 @@ describe('jsearchAdapter', () => {
     process.env.JSEARCH_API_KEY = 'test-key';
     process.env.JSEARCH_QUERIES = 'staff engineer';
     process.env.JSEARCH_COUNTRY = 'us';
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { jobs: [] } }) });
     vi.stubGlobal('fetch', fetchMock);
 
     await jsearchAdapter.fetchPostings();
@@ -92,7 +94,7 @@ describe('jsearchAdapter', () => {
     vi.mocked(settingsDb.getSetting).mockImplementation(async (key: string) =>
       key === 'jsearch_queries' ? 'db query' : null,
     );
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { jobs: [] } }) });
     vi.stubGlobal('fetch', fetchMock);
 
     await jsearchAdapter.fetchPostings();
