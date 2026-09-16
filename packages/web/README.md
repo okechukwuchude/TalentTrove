@@ -53,11 +53,20 @@ error, so you only need to configure the sources you actually want.
 
 All of the above can also be set from the running app at `/settings`,
 instead of editing these env vars — any signed-in account can view/edit
-them there, since ingestion is a single instance-wide job, not scoped per
-account. A value saved from `/settings` overrides its matching env var
-here; clearing it in the app (saving it blank) reverts to whatever's in
-the env var, if anything. API keys saved from `/settings` are encrypted
-at rest before being stored.
+them there by default, since ingestion is a single instance-wide job, not
+scoped per account (see `SETTINGS_ADMIN_EMAILS` below to restrict that). A
+value saved from `/settings` overrides its matching env var here; clearing
+it in the app (saving it blank) reverts to whatever's in the env var, if
+anything. API keys saved from `/settings` are encrypted at rest before
+being stored.
+
+`SETTINGS_ADMIN_EMAILS` — optional, a comma-separated list of emails.
+When set, only those accounts can view or edit `/settings`; everyone else
+signed in is redirected away from the page and gets a `403` from its API.
+Unset (the default) means any signed-in account can use `/settings`, same
+as before this variable existed — set it if this deployment has, or might
+ever have, more accounts than you want touching shared ingestion
+credentials (sign-up in this app has no invite gate).
 
 Rotating `SESSION_SECRET` makes any API keys already saved from
 `/settings` unreadable (they're encrypted using a key derived from it) —

@@ -1,7 +1,15 @@
 import Link from 'next/link';
 import { SignOutButton } from '../app/sign-out-button.tsx';
 
-export function AppNav({ signedIn, email }: { signedIn: boolean; email?: string }) {
+export function AppNav({
+  signedIn,
+  email,
+  showSettingsLink = false,
+}: {
+  signedIn: boolean;
+  email?: string;
+  showSettingsLink?: boolean;
+}) {
   return (
     <header className="border-b bg-card">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
@@ -25,9 +33,11 @@ export function AppNav({ signedIn, email }: { signedIn: boolean; email?: string 
             <Link href="/profile" className="hover:underline">
               Profile
             </Link>
-            <Link href="/settings" className="hover:underline">
-              Settings
-            </Link>
+            {showSettingsLink && (
+              <Link href="/settings" className="hover:underline">
+                Settings
+              </Link>
+            )}
             {email && <span className="text-muted-foreground">{email}</span>}
             <SignOutButton />
           </nav>

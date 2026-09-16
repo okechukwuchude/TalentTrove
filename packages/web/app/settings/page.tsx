@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { readCurrentUser } from '../../lib/require-session.ts';
+import { isSettingsAdmin } from '../../lib/settings-access.ts';
 import { SettingsView } from './settings-view.tsx';
 
 export default async function SettingsPage() {
@@ -11,6 +12,7 @@ export default async function SettingsPage() {
     .join('; ');
   const user = await readCurrentUser(cookieHeader);
   if (!user) redirect('/sign-in');
+  if (!isSettingsAdmin(user.email)) redirect('/');
 
   return <SettingsView />;
 }

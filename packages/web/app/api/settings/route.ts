@@ -1,5 +1,6 @@
 import { clearSetting, getSetting, setSecretSetting, setSetting } from '../../../lib/settings-db.ts';
 import { requireSession } from '../../../lib/require-session.ts';
+import { isSettingsAdmin } from '../../../lib/settings-access.ts';
 import { SETTINGS, type SettingConfig, type SettingItem, type SettingKey } from '../../../lib/settings-registry.ts';
 
 const SETTINGS_BY_KEY = new Map(SETTINGS.map((config) => [config.key, config]));
@@ -17,6 +18,9 @@ async function currentItem(config: SettingConfig): Promise<SettingItem> {
 export async function GET(request: Request): Promise<Response> {
   const auth = await requireSession(request);
   if ('unauthorized' in auth) return auth.unauthorized;
+  if (!isSettingsAdmin(auth.user.email)) {
+    return Response.json({ error: 'not authorized to view ingestion settings' }, { status: 403 });
+  }
 
   const items = await Promise.all(SETTINGS.map(currentItem));
   return Response.json({ items });
@@ -25,6 +29,9 @@ export async function GET(request: Request): Promise<Response> {
 export async function PUT(request: Request): Promise<Response> {
   const auth = await requireSession(request);
   if ('unauthorized' in auth) return auth.unauthorized;
+  if (!isSettingsAdmin(auth.user.email)) {
+    return Response.json({ error: 'not authorized to edit ingestion settings' }, { status: 403 });
+  }
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body || typeof body !== 'object') {

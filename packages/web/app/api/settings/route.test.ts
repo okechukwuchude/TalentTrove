@@ -25,17 +25,22 @@ describe.skipIf(!testDatabaseUrl)('/api/settings', () => {
     await sql`delete from users`;
     delete process.env.JSEARCH_QUERIES;
     delete process.env.JSEARCH_API_KEY;
+    delete process.env.SETTINGS_ADMIN_EMAILS;
   });
 
   afterAll(async () => {
     await sql.end();
   });
 
-  async function signedInCookie(): Promise<string> {
-    const user = await authDb.createUser(`${crypto.randomUUID()}@example.com`, 'hashed-password');
+  async function signedInCookieForEmail(email: string): Promise<string> {
+    const user = await authDb.createUser(email, 'hashed-password');
     const token = await authDb.createSession(user.id);
     const sealed = await sealSession({ token });
     return sessionCookieHeader(sealed).split(';')[0]!;
+  }
+
+  async function signedInCookie(): Promise<string> {
+    return signedInCookieForEmail(`${crypto.randomUUID()}@example.com`);
   }
 
   it('GET returns 401 when not signed in', async () => {
@@ -106,6 +111,33 @@ describe.skipIf(!testDatabaseUrl)('/api/settings', () => {
     const response = await route.GET(new Request('http://localhost/api/settings', { headers: { cookie } }));
     const body = (await response.json()) as { items: { key: string; value: string | null }[] };
     expect(body.items.find((item) => item.key === 'jsearch_queries')?.value).toBe('env fallback query');
+  });
+
+  it('GET returns 403 when SETTINGS_ADMIN_EMAILS is set and the signed-in email is not in it', async () => {
+    process.env.SETTINGS_ADMIN_EMAILS = 'owner@example.com';
+    const cookie = await signedInCookieForEmail('someone-else@example.com');
+    const response = await route.GET(new Request('http://localhost/api/settings', { headers: { cookie } }));
+    expect(response.status).toBe(403);
+  });
+
+  it('GET succeeds when the signed-in email is in SETTINGS_ADMIN_EMAILS', async () => {
+    process.env.SETTINGS_ADMIN_EMAILS = 'owner@example.com';
+    const cookie = await signedInCookieForEmail('owner@example.com');
+    const response = await route.GET(new Request('http://localhost/api/settings', { headers: { cookie } }));
+    expect(response.status).toBe(200);
+  });
+
+  it('PUT returns 403 when SETTINGS_ADMIN_EMAILS is set and the signed-in email is not in it', async () => {
+    process.env.SETTINGS_ADMIN_EMAILS = 'owner@example.com';
+    const cookie = await signedInCookieForEmail('someone-else@example.com');
+    const response = await route.PUT(
+      new Request('http://localhost/api/settings', {
+        method: 'PUT',
+        headers: { cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsearch_queries: 'x' }),
+      }),
+    );
+    expect(response.status).toBe(403);
   });
 
   it('PUT rejects an unknown key', async () => {

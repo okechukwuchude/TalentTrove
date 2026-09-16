@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import { QueryProvider } from './query-provider.tsx';
 import { readCurrentUser } from '../lib/require-session.ts';
+import { isSettingsAdmin } from '../lib/settings-access.ts';
 import { AppNav } from '../components/app-nav.tsx';
 import './globals.css';
 
@@ -21,7 +22,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground">
         <QueryProvider>
-          <AppNav signedIn={Boolean(user)} email={user?.email} />
+          <AppNav signedIn={Boolean(user)} email={user?.email} showSettingsLink={Boolean(user) && isSettingsAdmin(user?.email ?? '')} />
           <div className="mx-auto max-w-4xl px-4 py-8">{children}</div>
         </QueryProvider>
       </body>
