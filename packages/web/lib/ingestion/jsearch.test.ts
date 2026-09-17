@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsearchAdapter } from './jsearch.ts';
 import * as settingsDb from '../settings-db.ts';
+import * as userQueryPairs from './user-query-pairs.ts';
 
 vi.mock('../settings-db.ts', () => ({
   getSetting: vi.fn().mockResolvedValue(null),
   getSecretSetting: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('./user-query-pairs.ts', () => ({
+  loadDistinctQueryPairs: vi.fn().mockResolvedValue([]),
 }));
 
 describe('jsearchAdapter', () => {
@@ -12,12 +17,22 @@ describe('jsearchAdapter', () => {
     vi.unstubAllGlobals();
     vi.mocked(settingsDb.getSetting).mockReset().mockResolvedValue(null);
     vi.mocked(settingsDb.getSecretSetting).mockReset().mockResolvedValue(null);
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockReset().mockResolvedValue([]);
     delete process.env.JSEARCH_API_KEY;
-    delete process.env.JSEARCH_QUERIES;
-    delete process.env.JSEARCH_COUNTRY;
   });
 
-  it('returns nothing and never calls fetch when unconfigured', async () => {
+  it('returns nothing and never calls fetch when no API key is configured', async () => {
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([{ role: 'staff engineer', country: 'us' }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await jsearchAdapter.fetchPostings()).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns nothing and never calls fetch when there are no query pairs', async () => {
+    process.env.JSEARCH_API_KEY = 'test-key';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([]);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
@@ -27,7 +42,7 @@ describe('jsearchAdapter', () => {
 
   it('maps a JSearch response into RawPosting rows, dropping jobs missing required fields', async () => {
     process.env.JSEARCH_API_KEY = 'test-key';
-    process.env.JSEARCH_QUERIES = 'staff engineer';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([{ role: 'staff engineer', country: 'us' }]);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -73,26 +88,27 @@ describe('jsearchAdapter', () => {
     );
   });
 
-  it('appends a country param to the request URL when a country is configured, omits it otherwise', async () => {
+  it("queries once per (role, country) pair, appending each pair's own country param", async () => {
     process.env.JSEARCH_API_KEY = 'test-key';
-    process.env.JSEARCH_QUERIES = 'staff engineer';
-    process.env.JSEARCH_COUNTRY = 'us';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([
+      { role: 'staff engineer', country: 'us' },
+      { role: 'staff engineer', country: 'gb' },
+    ]);
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { jobs: [] } }) });
     vi.stubGlobal('fetch', fetchMock);
 
     await jsearchAdapter.fetchPostings();
 
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('&country=us'), expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('&country=gb'), expect.anything());
   });
 
-  it('prefers DB-stored settings over env vars', async () => {
+  it('prefers a DB-stored API key over the env var', async () => {
     process.env.JSEARCH_API_KEY = 'env-key';
-    process.env.JSEARCH_QUERIES = 'env query';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([{ role: 'staff engineer', country: 'us' }]);
     vi.mocked(settingsDb.getSecretSetting).mockImplementation(async (key: string) =>
       key === 'jsearch_api_key' ? 'db-key' : null,
-    );
-    vi.mocked(settingsDb.getSetting).mockImplementation(async (key: string) =>
-      key === 'jsearch_queries' ? 'db query' : null,
     );
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { jobs: [] } }) });
     vi.stubGlobal('fetch', fetchMock);
@@ -100,7 +116,7 @@ describe('jsearchAdapter', () => {
     await jsearchAdapter.fetchPostings();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('query=db%20query'),
+      expect.anything(),
       expect.objectContaining({ headers: expect.objectContaining({ 'X-RapidAPI-Key': 'db-key' }) }),
     );
   });

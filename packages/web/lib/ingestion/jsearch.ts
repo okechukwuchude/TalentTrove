@@ -1,6 +1,7 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
 import { normalizeCountry } from './shared.ts';
-import { getSecretSetting, getSetting } from '../settings-db.ts';
+import { getSecretSetting } from '../settings-db.ts';
+import { loadDistinctQueryPairs } from './user-query-pairs.ts';
 
 // RapidAPI's JSearch retired the original `/search` endpoint (it now 404s
 // with "Endpoint '/search' does not exist") in favor of `/search-v2` —
@@ -56,21 +57,19 @@ function mapJob(job: JSearchJob): RawPosting | null {
 
 async function fetchPostings(): Promise<RawPosting[]> {
   const apiKey = (await getSecretSetting('jsearch_api_key')) ?? process.env.JSEARCH_API_KEY;
-  const queriesRaw = (await getSetting('jsearch_queries')) ?? process.env.JSEARCH_QUERIES;
-  const country = (await getSetting('jsearch_country')) ?? process.env.JSEARCH_COUNTRY;
-  const queries = queriesRaw?.split(',').map((query) => query.trim()).filter(Boolean) ?? [];
-  if (!apiKey || queries.length === 0) return [];
+  if (!apiKey) return [];
+  const pairs = await loadDistinctQueryPairs();
+  if (pairs.length === 0) return [];
 
   const results: RawPosting[] = [];
-  for (const query of queries) {
-    const countryParam = country ? `&country=${encodeURIComponent(country)}` : '';
-    const url = `${JSEARCH_ENDPOINT}?query=${encodeURIComponent(query)}&num_pages=1${countryParam}`;
+  for (const { role, country } of pairs) {
+    const url = `${JSEARCH_ENDPOINT}?query=${encodeURIComponent(role)}&num_pages=1&country=${encodeURIComponent(country)}`;
     const response = await fetch(url, {
       headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'jsearch.p.rapidapi.com' },
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) {
-      console.error(`jsearch: query "${query}" failed with ${response.status}`);
+      console.error(`jsearch: query "${role}" (${country}) failed with ${response.status}`);
       continue;
     }
     const body = (await response.json()) as { data?: { jobs?: JSearchJob[] } };
