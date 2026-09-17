@@ -25,13 +25,13 @@ describe.skipIf(!testDatabaseUrl)('settings-db', () => {
   });
 
   it('returns null for a key that was never set', async () => {
-    expect(await settingsDb.getSetting('jsearch_queries')).toBeNull();
+    expect(await settingsDb.getSetting('greenhouse_companies')).toBeNull();
     expect(await settingsDb.getSecretSetting('jsearch_api_key')).toBeNull();
   });
 
   it('round-trips a plain setting', async () => {
-    await settingsDb.setSetting('jsearch_queries', 'staff engineer,backend engineer');
-    expect(await settingsDb.getSetting('jsearch_queries')).toBe('staff engineer,backend engineer');
+    await settingsDb.setSetting('greenhouse_companies', 'staff engineer,backend engineer');
+    expect(await settingsDb.getSetting('greenhouse_companies')).toBe('staff engineer,backend engineer');
   });
 
   it('round-trips a secret setting, storing it encrypted', async () => {
@@ -43,14 +43,14 @@ describe.skipIf(!testDatabaseUrl)('settings-db', () => {
   });
 
   it('setSetting overwrites an existing value for the same key', async () => {
-    await settingsDb.setSetting('jsearch_queries', 'first');
-    await settingsDb.setSetting('jsearch_queries', 'second');
-    expect(await settingsDb.getSetting('jsearch_queries')).toBe('second');
+    await settingsDb.setSetting('greenhouse_companies', 'first');
+    await settingsDb.setSetting('greenhouse_companies', 'second');
+    expect(await settingsDb.getSetting('greenhouse_companies')).toBe('second');
   });
 
   it('clearSetting removes the row', async () => {
-    await settingsDb.setSetting('jsearch_queries', 'staff engineer');
-    await settingsDb.clearSetting('jsearch_queries');
-    expect(await settingsDb.getSetting('jsearch_queries')).toBeNull();
+    await settingsDb.setSetting('greenhouse_companies', 'staff engineer');
+    await settingsDb.clearSetting('greenhouse_companies');
+    expect(await settingsDb.getSetting('greenhouse_companies')).toBeNull();
   });
 });

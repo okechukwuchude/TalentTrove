@@ -23,7 +23,7 @@ describe.skipIf(!testDatabaseUrl)('/api/settings', () => {
     await sql`delete from app_settings`;
     await sql`delete from sessions`;
     await sql`delete from users`;
-    delete process.env.JSEARCH_QUERIES;
+    delete process.env.GREENHOUSE_COMPANIES;
     delete process.env.JSEARCH_API_KEY;
     delete process.env.SETTINGS_ADMIN_EMAILS;
   });
@@ -49,14 +49,14 @@ describe.skipIf(!testDatabaseUrl)('/api/settings', () => {
   });
 
   it('GET reflects env-var fallback values and unset secrets', async () => {
-    process.env.JSEARCH_QUERIES = 'staff engineer';
+    process.env.GREENHOUSE_COMPANIES = 'stripe:Stripe';
     process.env.JSEARCH_API_KEY = 'env-key';
     const cookie = await signedInCookie();
     const response = await route.GET(new Request('http://localhost/api/settings', { headers: { cookie } }));
     const body = (await response.json()) as { items: { key: string; value: string | null; isSet: boolean; secret: boolean }[] };
-    const queries = body.items.find((item) => item.key === 'jsearch_queries');
+    const queries = body.items.find((item) => item.key === 'greenhouse_companies');
     const apiKey = body.items.find((item) => item.key === 'jsearch_api_key');
-    expect(queries).toMatchObject({ value: 'staff engineer', isSet: true, secret: false });
+    expect(queries).toMatchObject({ value: 'stripe:Stripe', isSet: true, secret: false });
     expect(apiKey).toMatchObject({ value: null, isSet: true, secret: true });
   });
 
@@ -66,12 +66,12 @@ describe.skipIf(!testDatabaseUrl)('/api/settings', () => {
       new Request('http://localhost/api/settings', {
         method: 'PUT',
         headers: { cookie, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsearch_queries: 'backend engineer' }),
+        body: JSON.stringify({ greenhouse_companies: 'figma:Figma' }),
       }),
     );
     const response = await route.GET(new Request('http://localhost/api/settings', { headers: { cookie } }));
     const body = (await response.json()) as { items: { key: string; value: string | null }[] };
-    expect(body.items.find((item) => item.key === 'jsearch_queries')?.value).toBe('backend engineer');
+    expect(body.items.find((item) => item.key === 'greenhouse_companies')?.value).toBe('figma:Figma');
   });
 
   it('PUT saves a secret value encrypted, which GET reflects only as isSet', async () => {
@@ -97,20 +97,20 @@ describe.skipIf(!testDatabaseUrl)('/api/settings', () => {
       new Request('http://localhost/api/settings', {
         method: 'PUT',
         headers: { cookie, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsearch_queries: 'backend engineer' }),
+        body: JSON.stringify({ greenhouse_companies: 'figma:Figma' }),
       }),
     );
-    process.env.JSEARCH_QUERIES = 'env fallback query';
+    process.env.GREENHOUSE_COMPANIES = 'env:Fallback';
     await route.PUT(
       new Request('http://localhost/api/settings', {
         method: 'PUT',
         headers: { cookie, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsearch_queries: '' }),
+        body: JSON.stringify({ greenhouse_companies: '' }),
       }),
     );
     const response = await route.GET(new Request('http://localhost/api/settings', { headers: { cookie } }));
     const body = (await response.json()) as { items: { key: string; value: string | null }[] };
-    expect(body.items.find((item) => item.key === 'jsearch_queries')?.value).toBe('env fallback query');
+    expect(body.items.find((item) => item.key === 'greenhouse_companies')?.value).toBe('env:Fallback');
   });
 
   it('GET returns 403 when SETTINGS_ADMIN_EMAILS is set and the signed-in email is not in it', async () => {
@@ -134,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)('/api/settings', () => {
       new Request('http://localhost/api/settings', {
         method: 'PUT',
         headers: { cookie, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsearch_queries: 'x' }),
+        body: JSON.stringify({ greenhouse_companies: 'x:X' }),
       }),
     );
     expect(response.status).toBe(403);

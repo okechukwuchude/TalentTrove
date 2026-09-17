@@ -23,10 +23,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 const ITEMS = [
   { key: 'jsearch_api_key', label: 'JSearch API key', secret: true, value: null, isSet: false },
   {
-    key: 'jsearch_queries',
-    label: 'JSearch search queries (comma-separated)',
+    key: 'greenhouse_companies',
+    label: 'Greenhouse companies (token:Display Name, comma-separated)',
     secret: false,
-    value: 'staff engineer',
+    value: 'stripe:Stripe',
     isSet: true,
   },
   { key: 'adzuna_app_id', label: 'Adzuna app ID', secret: true, value: null, isSet: true },
@@ -40,7 +40,9 @@ describe('SettingsView', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument();
 
     await screen.findByText('JSearch');
-    expect(screen.getByLabelText('JSearch search queries (comma-separated)')).toHaveValue('staff engineer');
+    expect(screen.getByLabelText('Greenhouse companies (token:Display Name, comma-separated)')).toHaveValue(
+      'stripe:Stripe',
+    );
     expect(screen.getByText('Adzuna')).toBeInTheDocument();
   });
 
@@ -62,19 +64,19 @@ describe('SettingsView', () => {
     vi.stubGlobal('fetch', doFetch);
     renderWithClient(<SettingsView />);
 
-    await screen.findByText('JSearch');
-    fireEvent.change(screen.getByLabelText('JSearch search queries (comma-separated)'), {
-      target: { value: 'backend engineer' },
+    await screen.findByText('Greenhouse');
+    fireEvent.change(screen.getByLabelText('Greenhouse companies (token:Display Name, comma-separated)'), {
+      target: { value: 'figma:Figma' },
     });
-    const jsearchSection = screen.getByText('JSearch').closest('.rounded-lg') as HTMLElement;
-    fireEvent.click(within(jsearchSection).getByRole('button', { name: /^save$/i }));
+    const greenhouseSection = screen.getByText('Greenhouse').closest('.rounded-lg') as HTMLElement;
+    fireEvent.click(within(greenhouseSection).getByRole('button', { name: /^save$/i }));
 
     await waitFor(() =>
       expect(doFetch).toHaveBeenCalledWith(
         '/api/settings',
         expect.objectContaining({
           method: 'PUT',
-          body: JSON.stringify({ jsearch_queries: 'backend engineer' }),
+          body: JSON.stringify({ greenhouse_companies: 'figma:Figma' }),
         }),
       ),
     );
