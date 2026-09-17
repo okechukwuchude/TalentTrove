@@ -158,6 +158,15 @@ export const routines = pgTable(
   (table) => [uniqueIndex('routines_user_id_name_key').on(table.userId, table.name)],
 );
 
+export const userPreferences = pgTable('user_preferences', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  roles: text('roles').array(),
+  countries: text('countries').array(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const appSettings = pgTable('app_settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull(), // plaintext for non-secret keys; AES-256-GCM ciphertext for secret keys (lib/settings-crypto.ts)

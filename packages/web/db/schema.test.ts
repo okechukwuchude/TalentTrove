@@ -149,4 +149,13 @@ describe.skipIf(!testDatabaseUrl)('schema migrations', () => {
     `;
     expect(columns.map((c) => c.column_name).sort()).toEqual(['key', 'updated_at', 'value']);
   });
+
+  it('creates user_preferences', async () => {
+    const rows = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_schema = 'public'
+      and table_name = 'user_preferences'
+    `;
+    expect(rows).toHaveLength(1);
+  });
 });

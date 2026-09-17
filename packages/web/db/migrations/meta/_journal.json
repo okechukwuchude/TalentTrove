@@ -64,6 +64,13 @@
       "when": 1789513154612,
       "tag": "0008_absent_vargas",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789651755754,
+      "tag": "0009_dapper_aaron_stack",
+      "breakpoints": true
     }
   ]
 }
