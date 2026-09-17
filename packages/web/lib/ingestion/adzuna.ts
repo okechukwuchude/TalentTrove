@@ -1,6 +1,7 @@
 import type { IngestionAdapter, RawPosting } from './types.ts';
 import { normalizeCountry } from './shared.ts';
-import { getSecretSetting, getSetting } from '../settings-db.ts';
+import { getSecretSetting } from '../settings-db.ts';
+import { loadDistinctQueryPairs } from './user-query-pairs.ts';
 
 const ADZUNA_ENDPOINT = 'https://api.adzuna.com/v1/api/jobs';
 
@@ -45,26 +46,22 @@ function mapJob(job: AdzunaJob, countryCode: string): RawPosting | null {
 async function fetchPostings(): Promise<RawPosting[]> {
   const appId = (await getSecretSetting('adzuna_app_id')) ?? process.env.ADZUNA_APP_ID;
   const appKey = (await getSecretSetting('adzuna_app_key')) ?? process.env.ADZUNA_APP_KEY;
-  const countriesRaw = (await getSetting('adzuna_countries')) ?? process.env.ADZUNA_COUNTRIES;
-  const queriesRaw = (await getSetting('adzuna_queries')) ?? process.env.ADZUNA_QUERIES;
-  const countries = countriesRaw?.split(',').map((code) => code.trim().toLowerCase()).filter(Boolean) ?? [];
-  const queries = queriesRaw?.split(',').map((query) => query.trim()).filter(Boolean) ?? [];
-  if (!appId || !appKey || countries.length === 0 || queries.length === 0) return [];
+  if (!appId || !appKey) return [];
+  const pairs = await loadDistinctQueryPairs();
+  if (pairs.length === 0) return [];
 
   const results: RawPosting[] = [];
-  for (const country of countries) {
-    for (const query of queries) {
-      const url = `${ADZUNA_ENDPOINT}/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${encodeURIComponent(query)}&content-type=application/json`;
-      const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-      if (!response.ok) {
-        console.error(`adzuna: ${country}/"${query}" failed with ${response.status}`);
-        continue;
-      }
-      const body = (await response.json()) as { results?: AdzunaJob[] };
-      for (const job of body.results ?? []) {
-        const mapped = mapJob(job, country);
-        if (mapped) results.push(mapped);
-      }
+  for (const { role, country } of pairs) {
+    const url = `${ADZUNA_ENDPOINT}/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${encodeURIComponent(role)}&content-type=application/json`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) {
+      console.error(`adzuna: ${country}/"${role}" failed with ${response.status}`);
+      continue;
+    }
+    const body = (await response.json()) as { results?: AdzunaJob[] };
+    for (const job of body.results ?? []) {
+      const mapped = mapJob(job, country);
+      if (mapped) results.push(mapped);
     }
   }
   return results;

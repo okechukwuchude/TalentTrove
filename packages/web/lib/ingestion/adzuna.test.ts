@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adzunaAdapter } from './adzuna.ts';
 import * as settingsDb from '../settings-db.ts';
+import * as userQueryPairs from './user-query-pairs.ts';
 
 vi.mock('../settings-db.ts', () => ({
   getSetting: vi.fn().mockResolvedValue(null),
   getSecretSetting: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('./user-query-pairs.ts', () => ({
+  loadDistinctQueryPairs: vi.fn().mockResolvedValue([]),
 }));
 
 describe('adzunaAdapter', () => {
@@ -12,13 +17,24 @@ describe('adzunaAdapter', () => {
     vi.unstubAllGlobals();
     vi.mocked(settingsDb.getSetting).mockReset().mockResolvedValue(null);
     vi.mocked(settingsDb.getSecretSetting).mockReset().mockResolvedValue(null);
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockReset().mockResolvedValue([]);
     delete process.env.ADZUNA_APP_ID;
     delete process.env.ADZUNA_APP_KEY;
-    delete process.env.ADZUNA_COUNTRIES;
-    delete process.env.ADZUNA_QUERIES;
   });
 
   it('returns nothing and never calls fetch when unconfigured', async () => {
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([{ role: 'staff engineer', country: 'us' }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await adzunaAdapter.fetchPostings()).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns nothing and never calls fetch when there are no query pairs', async () => {
+    process.env.ADZUNA_APP_ID = 'app-id';
+    process.env.ADZUNA_APP_KEY = 'app-key';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([]);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
@@ -29,8 +45,7 @@ describe('adzunaAdapter', () => {
   it('maps an Adzuna response into RawPosting rows, dropping jobs missing required fields', async () => {
     process.env.ADZUNA_APP_ID = 'app-id';
     process.env.ADZUNA_APP_KEY = 'app-key';
-    process.env.ADZUNA_COUNTRIES = 'us';
-    process.env.ADZUNA_QUERIES = 'staff engineer';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([{ role: 'staff engineer', country: 'us' }]);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -72,19 +87,30 @@ describe('adzunaAdapter', () => {
     );
   });
 
-  it('prefers DB-stored settings over env vars', async () => {
+  it('queries once per (role, country) pair', async () => {
+    process.env.ADZUNA_APP_ID = 'app-id';
+    process.env.ADZUNA_APP_KEY = 'app-key';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([
+      { role: 'staff engineer', country: 'us' },
+      { role: 'staff engineer', country: 'gb' },
+    ]);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await adzunaAdapter.fetchPostings();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/jobs/us/search/1'), expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/jobs/gb/search/1'), expect.anything());
+  });
+
+  it('prefers DB-stored app id/key over env vars', async () => {
     process.env.ADZUNA_APP_ID = 'env-id';
     process.env.ADZUNA_APP_KEY = 'env-key';
-    process.env.ADZUNA_COUNTRIES = 'gb';
-    process.env.ADZUNA_QUERIES = 'env query';
+    vi.mocked(userQueryPairs.loadDistinctQueryPairs).mockResolvedValue([{ role: 'staff engineer', country: 'us' }]);
     vi.mocked(settingsDb.getSecretSetting).mockImplementation(async (key: string) => {
       if (key === 'adzuna_app_id') return 'db-id';
       if (key === 'adzuna_app_key') return 'db-key';
-      return null;
-    });
-    vi.mocked(settingsDb.getSetting).mockImplementation(async (key: string) => {
-      if (key === 'adzuna_countries') return 'us';
-      if (key === 'adzuna_queries') return 'db query';
       return null;
     });
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [] }) });
@@ -93,7 +119,7 @@ describe('adzunaAdapter', () => {
     await adzunaAdapter.fetchPostings();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/jobs/us/search/1?app_id=db-id&app_key=db-key&what=db%20query'),
+      expect.stringContaining('/jobs/us/search/1?app_id=db-id&app_key=db-key&what=staff%20engineer'),
       expect.anything(),
     );
   });
