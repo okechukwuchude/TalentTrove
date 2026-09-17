@@ -21,23 +21,26 @@ with none of them set, it just won't have any real postings to search.
 ## Configuring postings ingestion
 
 `postings` is populated by five independent source adapters
-(`lib/ingestion/*.ts`), each reading its own environment variables. An
-adapter with none of its variables set fetches nothing — this is not an
-error, so you only need to configure the sources you actually want.
+(`lib/ingestion/*.ts`). Greenhouse, Lever, and Ashby each read their own
+environment variables (or `/settings`, see below) and fetch nothing when
+unconfigured — this is not an error. JSearch and Adzuna are different:
+they're driven by every account's own roles and countries, set at
+`/profile` (see "Per-account role/country ingestion" below) — an instance
+where no account has set any roles/countries yet gets nothing from these
+two sources, same as an unconfigured adapter today.
 
 - **JSearch** (aggregator, sourced from Google for Jobs — covers Indeed/
-  LinkedIn/Glassdoor listings indirectly): `JSEARCH_API_KEY` (a RapidAPI
-  key for the [JSearch API](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch))
-  and `JSEARCH_QUERIES`, a comma-separated list of search terms, e.g.
-  `JSEARCH_QUERIES=staff software engineer,senior backend engineer`. One
-  request is made per query. `JSEARCH_COUNTRY` (optional, a two-letter
-  code, e.g. `us`) scopes every query to that country.
-- **Adzuna** (a second aggregator, different coverage mix):
+  LinkedIn/Glassdoor listings indirectly): needs `JSEARCH_API_KEY` (a
+  RapidAPI key for the
+  [JSearch API](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch)).
+  Its search terms and countries are not configured here — they come from
+  every account's own roles/countries (see "Per-account role/country
+  ingestion" below).
+- **Adzuna** (a second aggregator, different coverage mix): needs
   `ADZUNA_APP_ID`/`ADZUNA_APP_KEY` (from
-  [developer.adzuna.com](https://developer.adzuna.com/)), plus
-  `ADZUNA_COUNTRIES` (comma-separated two-letter codes, e.g. `us,gb`) and
-  `ADZUNA_QUERIES` (comma-separated search terms). Queried once per
-  country × query pair.
+  [developer.adzuna.com](https://developer.adzuna.com/)). Like JSearch,
+  its search terms and countries come from account roles/countries, not
+  from env vars here.
 - **Greenhouse / Lever / Ashby** (direct from a company's own public job
   board — no API key needed for any of the three):
   `GREENHOUSE_COMPANIES`, `LEVER_COMPANIES`, `ASHBY_COMPANIES`. Each is a
@@ -51,14 +54,31 @@ error, so you only need to configure the sources you actually want.
   name should read in search results. Example:
   `GREENHOUSE_COMPANIES=stripe:Stripe,figma:Figma`.
 
-All of the above can also be set from the running app at `/settings`,
-instead of editing these env vars — any signed-in account can view/edit
-them there by default, since ingestion is a single instance-wide job, not
-scoped per account (see `SETTINGS_ADMIN_EMAILS` below to restrict that). A
-value saved from `/settings` overrides its matching env var here; clearing
-it in the app (saving it blank) reverts to whatever's in the env var, if
-anything. API keys saved from `/settings` are encrypted at rest before
-being stored.
+### Per-account role/country ingestion
+
+Each signed-in account sets up to 5 roles and 3 countries at `/profile`
+("Roles & countries"). Once saved, matching postings show up automatically
+right on `/profile`, below the editor — one search per saved (role,
+country) pair, merged and deduped, so there's no separate step to go find
+them. JSearch and Adzuna are queried once per distinct `(role, country)`
+pair across *every* account with both set — if two accounts both want
+"staff software engineer" in "us", that's one API call for that pair, not
+two. Countries are limited to the set `lib/ingestion/adzuna-countries.ts`
+lists (Adzuna's supported codes, the stricter of the two adapters). An
+account with no roles or no countries set contributes nothing to these two
+sources, same as an ingestion adapter with no config does today; postings
+from other accounts' pulls are still visible to them through the normal
+shared `postings` search.
+
+API keys and the Greenhouse/Lever/Ashby company lists can also be set from
+the running app at `/settings`, instead of editing these env vars — any
+signed-in account can view/edit them there by default (see
+`SETTINGS_ADMIN_EMAILS` below to restrict that). These remain
+instance-wide, unlike JSearch/Adzuna's roles/countries, which are set per
+account at `/profile` (see above), not at `/settings`. A value saved from
+`/settings` overrides its matching env var here; clearing it in the app
+(saving it blank) reverts to whatever's in the env var, if anything. API
+keys saved from `/settings` are encrypted at rest before being stored.
 
 `SETTINGS_ADMIN_EMAILS` — optional, a comma-separated list of emails.
 When set, only those accounts can view or edit `/settings`; everyone else
@@ -76,8 +96,8 @@ re-enter them from `/settings` afterwards; the non-secret fields
 Ingestion runs two ways:
 
 - **Scheduled**, via `POST /api/cron/ingest-postings`, which Vercel Cron
-  calls on the `vercel.json` schedule (every 6 hours by default). This
-  route requires `CRON_SECRET` to be set — without it, every call is
+  calls on the `vercel.json` schedule (once daily, 6am UTC by default).
+  This route requires `CRON_SECRET` to be set — without it, every call is
   refused with `401`, including Vercel's own.
 - **Manually**, via `npm run db:ingest -w packages/web`, which runs the
   same ingestion against whatever `DATABASE_URL` is set to. Useful for
@@ -108,8 +128,9 @@ call, the same way an unconfigured postings-ingestion source does.
 Judging runs two ways, mirroring ingestion:
 
 - **Scheduled**, via `GET /api/cron/judge-postings`, which Vercel Cron
-  calls per `vercel.json`'s schedule (every 6 hours, offset an hour after
-  ingestion). This route requires `CRON_SECRET` (shared with the
+  calls per `vercel.json`'s schedule (every 6 hours, starting an hour after
+  the once-daily ingestion run; the other three daily runs judge whatever's
+  accumulated since). This route requires `CRON_SECRET` (shared with the
   ingestion cron route) — without it, every call is refused with `401`.
 - **Manually**, via `npm run db:judge -w packages/web`, against whatever
   `DATABASE_URL` is set to.
