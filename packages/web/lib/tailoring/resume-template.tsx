@@ -1,3 +1,4 @@
+import React from 'react';
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 
 export type TailoredResumeProps = {
