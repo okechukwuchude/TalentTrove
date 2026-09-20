@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert this repo from a single npm package into an npm-workspaces monorepo (`packages/shared`, `packages/cli`, `packages/web`) with zero behavior change to the published `pinloop` CLI, and with Vitest wired up as the test runner every later plan builds on.
+**Goal:** Convert this repo from a single npm package into an npm-workspaces monorepo (`packages/shared`, `packages/cli`, `packages/web`) with zero behavior change to the published `talenttrove` CLI, and with Vitest wired up as the test runner every later plan builds on.
 
-**Architecture:** `packages/shared` is a small internal library with one barrel entry point (`src/index.ts`), never published on its own. `packages/cli` is today's `src/cli/` moved as-is; its build step type-checks with `tsc` and then bundles the compiled output together with `@pinloop/shared` into one self-contained `dist/pinloop.js` via esbuild, so the published npm package has no dependency on an unpublished workspace package. `packages/web` is scaffolded as a minimal Next.js app that also depends on `@pinloop/shared`, proving the third package wires up correctly — it has no real pages yet, those come in later plans.
+**Architecture:** `packages/shared` is a small internal library with one barrel entry point (`src/index.ts`), never published on its own. `packages/cli` is today's `src/cli/` moved as-is; its build step type-checks with `tsc` and then bundles the compiled output together with `@talenttrove/shared` into one self-contained `dist/talenttrove.js` via esbuild, so the published npm package has no dependency on an unpublished workspace package. `packages/web` is scaffolded as a minimal Next.js app that also depends on `@talenttrove/shared`, proving the third package wires up correctly — it has no real pages yet, those come in later plans.
 
 **Tech Stack:** npm workspaces, TypeScript 5.7 (unchanged compiler conventions), esbuild (CLI bundling only), Vitest (testing), Next.js 15 / React 19 (web scaffold only).
 
@@ -15,8 +15,8 @@
 - Node `>=22` (from the spec's inherited `engines` field).
 - `"type": "module"` (ESM) everywhere — root and every package.
 - TypeScript `strict: true`, `noUncheckedIndexedAccess: true`, and the existing modern-module conventions (`moduleResolution: "bundler"`, `allowImportingTsExtensions: true`, `rewriteRelativeImportExtensions: true`) carry over unchanged into every package's tsconfig.
-- `npm install -g pinloop` and the `pinloop` command name must keep working exactly as before this project — no functional regression to the published CLI.
-- `@pinloop/shared` is a private, unpublished workspace-only package. It must **never** appear under a `dependencies` key of a package that gets published to the npm registry (only `packages/cli`, today, publishes) — only under `devDependencies`, where it's used purely as a build-time input that gets bundled away.
+- `npm install -g talenttrove` and the `talenttrove` command name must keep working exactly as before this project — no functional regression to the published CLI.
+- `@talenttrove/shared` is a private, unpublished workspace-only package. It must **never** appear under a `dependencies` key of a package that gets published to the npm registry (only `packages/cli`, today, publishes) — only under `devDependencies`, where it's used purely as a build-time input that gets bundled away.
 
 ---
 
@@ -40,7 +40,7 @@ The current root `package.json` is today's CLI package manifest. Don't delete it
 
 ```json
 {
-  "name": "pinloop-monorepo",
+  "name": "talenttrove-monorepo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -148,7 +148,7 @@ git commit -m "Scaffold npm workspaces root and Vitest config"
 
 **Interfaces:**
 - Consumes: `commander`'s types (only `guide.ts` needs this, as a type-only import: `import type { Command } from 'commander'`).
-- Produces: `@pinloop/shared`, a package whose single entry point re-exports every named export of all 14 modules above (`coverageOf`, `type Coverage`, `runFilter`, `type FilterRules`, `type FilterDrop`, `type FilterAnswer`, `cutoffInstant`, `buildGuide`, `NON_COMMAND_PARTS`, `type GuideOptions`, `commandsIn`, `allowanceLines`, `SIGNED_OUT_SENTENCE`, `staleSkillNotice`, `CONFIRM_EXPLANATION`, `GUIDE_TEXT`, `SKILL_TEXT`, `SKILL_VERSION`, `printWelcome`, `RESERVED_NAMES`, `type DocumentKind`, `JUDGE_PROMPT_NAME`, `QUICK_JUDGE_PROMPT_NAME`, `DEFAULT_JUDGE_PROMPT`, `DEFAULT_QUICK_JUDGE_PROMPT`, `reservedKind`, `beginsLikeAPdf`, `NAME_RULE`, `PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP`, `FILE_CAP`, `FILE_CONTENT_TYPE`, `DEFAULT_FILE_NAME`, the eight `*Refusal` functions (`nameRuleRefusal`, `wrongKindRefusal`, `holdsTextRefusal`, `overFileCapRefusal`, `notAPdfRefusal`, `willNotOpenRefusal`, `perDocumentRefusal`, `wholeProfileRefusal`), `BILLING_PATH`, `BILLING_TRADE_PATH`, `BILLING_STATUS_PATH`, `STRIPE_NOTICE_PATH`, `STRIPE_SIGNATURE_HEADER`, `UPGRADE_PAGE_PATH`, `UPGRADE_DONE_PAGE_PATH`, `BILLING_CODE_PARAMETER`, `CHECKOUT_PARAMETER`, `BILLING_CODE_LIFETIME_MS`, `BILLING_OPEN_LINE`, `billingLines`, sign-in's constants (`SIGN_IN_SITE_URL`, `SIGN_IN_PAGE_PATH`, `CALLBACK_PAGE_PATH`, `HANDOFF_PATH`, `HANDOFF_TRADE_PATH`, etc.) and functions (`loggedInLine`, `signedOutLine`), `type DeliveredPass`, `MAX_IN_FLIGHT_REQUESTS`, `PROGRESS_CONTENT_TYPE`, `type ProgressEvent`, `VERDICTS`, `type Verdict`, `dropReason`, `rankOf`, `isVersion`, `compareVersions`, `MESSAGES_PER_DAY`, `MAX_MESSAGE_CHARS`, `RATE_LIMIT_REQUESTS`, `PULL_CEILING`) — every consumer imports from the single path `'@pinloop/shared'`.
+- Produces: `@talenttrove/shared`, a package whose single entry point re-exports every named export of all 14 modules above (`coverageOf`, `type Coverage`, `runFilter`, `type FilterRules`, `type FilterDrop`, `type FilterAnswer`, `cutoffInstant`, `buildGuide`, `NON_COMMAND_PARTS`, `type GuideOptions`, `commandsIn`, `allowanceLines`, `SIGNED_OUT_SENTENCE`, `staleSkillNotice`, `CONFIRM_EXPLANATION`, `GUIDE_TEXT`, `SKILL_TEXT`, `SKILL_VERSION`, `printWelcome`, `RESERVED_NAMES`, `type DocumentKind`, `JUDGE_PROMPT_NAME`, `QUICK_JUDGE_PROMPT_NAME`, `DEFAULT_JUDGE_PROMPT`, `DEFAULT_QUICK_JUDGE_PROMPT`, `reservedKind`, `beginsLikeAPdf`, `NAME_RULE`, `PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP`, `FILE_CAP`, `FILE_CONTENT_TYPE`, `DEFAULT_FILE_NAME`, the eight `*Refusal` functions (`nameRuleRefusal`, `wrongKindRefusal`, `holdsTextRefusal`, `overFileCapRefusal`, `notAPdfRefusal`, `willNotOpenRefusal`, `perDocumentRefusal`, `wholeProfileRefusal`), `BILLING_PATH`, `BILLING_TRADE_PATH`, `BILLING_STATUS_PATH`, `STRIPE_NOTICE_PATH`, `STRIPE_SIGNATURE_HEADER`, `UPGRADE_PAGE_PATH`, `UPGRADE_DONE_PAGE_PATH`, `BILLING_CODE_PARAMETER`, `CHECKOUT_PARAMETER`, `BILLING_CODE_LIFETIME_MS`, `BILLING_OPEN_LINE`, `billingLines`, sign-in's constants (`SIGN_IN_SITE_URL`, `SIGN_IN_PAGE_PATH`, `CALLBACK_PAGE_PATH`, `HANDOFF_PATH`, `HANDOFF_TRADE_PATH`, etc.) and functions (`loggedInLine`, `signedOutLine`), `type DeliveredPass`, `MAX_IN_FLIGHT_REQUESTS`, `PROGRESS_CONTENT_TYPE`, `type ProgressEvent`, `VERDICTS`, `type Verdict`, `dropReason`, `rankOf`, `isVersion`, `compareVersions`, `MESSAGES_PER_DAY`, `MAX_MESSAGE_CHARS`, `RATE_LIMIT_REQUESTS`, `PULL_CEILING`) — every consumer imports from the single path `'@talenttrove/shared'`.
 
 - [ ] **Step 1: Move the files**
 
@@ -162,7 +162,7 @@ This preserves git history on each file. `packages/shared/src` now holds the 14 
 
 ```json
 {
-  "name": "@pinloop/shared",
+  "name": "@talenttrove/shared",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -220,7 +220,7 @@ export * from './welcome.ts';
 npm install
 ```
 
-Expected: succeeds, and `npm ls --workspaces` now lists `@pinloop/shared`.
+Expected: succeeds, and `npm ls --workspaces` now lists `@talenttrove/shared`.
 
 - [ ] **Step 6: Build and verify it type-checks**
 
@@ -276,16 +276,16 @@ git commit -m "Add packages/shared as an npm workspace, with its first unit test
 **Files:**
 - Create: `packages/cli/package.json`
 - Create: `packages/cli/tsconfig.json`
-- Move: `src/cli/*.ts` → `packages/cli/src/*.ts` (7 files: `browser-login.ts`, `format.ts`, `paths.ts`, `pinloop.ts`, `rows.ts`, `screen.ts`, `version.ts`)
-- Modify: `packages/cli/src/pinloop.ts` (rewrite its `../shared/*.ts` imports to `@pinloop/shared`)
+- Move: `src/cli/*.ts` → `packages/cli/src/*.ts` (7 files: `browser-login.ts`, `format.ts`, `paths.ts`, `talenttrove.ts`, `rows.ts`, `screen.ts`, `version.ts`)
+- Modify: `packages/cli/src/talenttrove.ts` (rewrite its `../shared/*.ts` imports to `@talenttrove/shared`)
 - Modify: `packages/cli/src/screen.ts` (same)
 - Modify: `packages/cli/src/format.ts` (same)
 - Modify: `packages/cli/src/browser-login.ts` (same)
 - Delete: now-empty `src/` directory (its `cli/` and `shared/` subdirectories were both moved out, by this task's Step 1 and Task 2's Step 1)
 
 **Interfaces:**
-- Consumes: `@pinloop/shared`'s exports (specifically: `coverageOf`, `Coverage`, `runFilter`, `FilterRules`, `buildGuide`, `NON_COMMAND_PARTS`, `allowanceLines`, `SIGNED_OUT_SENTENCE`, `SKILL_TEXT`, `SKILL_VERSION`, `printWelcome`, `DEFAULT_FILE_NAME`, `FILE_CONTENT_TYPE`, `JUDGE_PROMPT_NAME`, `QUICK_JUDGE_PROMPT_NAME`, `beginsLikeAPdf`, `reservedKind`, `PROGRESS_CONTENT_TYPE`, `ProgressEvent`, `dropReason`, `compareVersions`, `isVersion`, `ADDRESS_INDENT`, `HANDOFF_TRADE_PATH`, `NO_LOGIN_SAVED_LINE`, `OPEN_THIS_ADDRESS_LINE`, `PASSWORD_FLAGS_REFUSAL`, `PASTE_THE_CODE_LINE`, `loggedInLine`, `signedOutLine`, `DeliveredPass`, `BILLING_PATH`, `billingLines`, `MAX_IN_FLIGHT_REQUESTS`, `GAVE_UP_LINE`, `LOOPBACK_CALLBACK_PATH`, `PORT_PARAMETER`, `SECRET_PARAMETER`, `SIGN_IN_PAGE_PATH`, `SIGN_IN_SITE_URL`, `SIGN_IN_SITE_URL_ENV_VAR`, `WAIT_FOR_SIGN_IN_MS`).
-- Produces: `packages/cli/src/*.ts` type-checking cleanly against `@pinloop/shared` built in Task 2, ready for Task 4's bundling step. (No `dist/` yet from this task — `tsc --noEmit` only.)
+- Consumes: `@talenttrove/shared`'s exports (specifically: `coverageOf`, `Coverage`, `runFilter`, `FilterRules`, `buildGuide`, `NON_COMMAND_PARTS`, `allowanceLines`, `SIGNED_OUT_SENTENCE`, `SKILL_TEXT`, `SKILL_VERSION`, `printWelcome`, `DEFAULT_FILE_NAME`, `FILE_CONTENT_TYPE`, `JUDGE_PROMPT_NAME`, `QUICK_JUDGE_PROMPT_NAME`, `beginsLikeAPdf`, `reservedKind`, `PROGRESS_CONTENT_TYPE`, `ProgressEvent`, `dropReason`, `compareVersions`, `isVersion`, `ADDRESS_INDENT`, `HANDOFF_TRADE_PATH`, `NO_LOGIN_SAVED_LINE`, `OPEN_THIS_ADDRESS_LINE`, `PASSWORD_FLAGS_REFUSAL`, `PASTE_THE_CODE_LINE`, `loggedInLine`, `signedOutLine`, `DeliveredPass`, `BILLING_PATH`, `billingLines`, `MAX_IN_FLIGHT_REQUESTS`, `GAVE_UP_LINE`, `LOOPBACK_CALLBACK_PATH`, `PORT_PARAMETER`, `SECRET_PARAMETER`, `SIGN_IN_PAGE_PATH`, `SIGN_IN_SITE_URL`, `SIGN_IN_SITE_URL_ENV_VAR`, `WAIT_FOR_SIGN_IN_MS`).
+- Produces: `packages/cli/src/*.ts` type-checking cleanly against `@talenttrove/shared` built in Task 2, ready for Task 4's bundling step. (No `dist/` yet from this task — `tsc --noEmit` only.)
 
 - [ ] **Step 1: Move the files**
 
@@ -299,14 +299,14 @@ This carries over every dependency version from the original root `package.json`
 
 ```json
 {
-  "name": "pinloop",
+  "name": "talenttrove",
   "version": "0.4.1",
-  "description": "The Pinloop command line: enable your coding agent to run your whole job search.",
+  "description": "The TalentTrove command line: enable your coding agent to run your whole job search.",
   "type": "module",
   "bin": {
-    "pinloop": "./dist/pinloop.js"
+    "talenttrove": "./dist/talenttrove.js"
   },
-  "homepage": "https://pinloop.ai",
+  "homepage": "https://talenttrove.ai",
   "scripts": {
     "build": "tsc --noEmit && node scripts/build.mjs",
     "prepack": "npm run build"
@@ -318,7 +318,7 @@ This carries over every dependency version from the original root `package.json`
     "cli-spinners": "^3.4.0"
   },
   "devDependencies": {
-    "@pinloop/shared": "*",
+    "@talenttrove/shared": "*",
     "@types/node": "^22.10.2",
     "esbuild": "^0.24.0"
   },
@@ -329,9 +329,9 @@ This carries over every dependency version from the original root `package.json`
 }
 ```
 
-`@pinloop/shared` is under `devDependencies`, never `dependencies` — Task 4's esbuild step inlines its compiled code directly into `dist/pinloop.js`, so the published package never needs to resolve `@pinloop/shared` at install time. Listing it as a real `dependency` would break `npm install -g pinloop` for every real user, since `@pinloop/shared` doesn't exist on the npm registry. `esbuild` and `scripts/build.mjs` are added by Task 4 — this task only needs the manifest shape in place.
+`@talenttrove/shared` is under `devDependencies`, never `dependencies` — Task 4's esbuild step inlines its compiled code directly into `dist/talenttrove.js`, so the published package never needs to resolve `@talenttrove/shared` at install time. Listing it as a real `dependency` would break `npm install -g talenttrove` for every real user, since `@talenttrove/shared` doesn't exist on the npm registry. `esbuild` and `scripts/build.mjs` are added by Task 4 — this task only needs the manifest shape in place.
 
-The `bin` path changes from `./dist/cli/pinloop.js` to `./dist/pinloop.js` because Task 4's bundler produces one flat file rather than mirroring the old `src/cli/` + `src/shared/` directory split in `dist/`.
+The `bin` path changes from `./dist/cli/talenttrove.js` to `./dist/talenttrove.js` because Task 4's bundler produces one flat file rather than mirroring the old `src/cli/` + `src/shared/` directory split in `dist/`.
 
 - [ ] **Step 3: Write `packages/cli/tsconfig.json`**
 
@@ -346,9 +346,9 @@ The `bin` path changes from `./dist/cli/pinloop.js` to `./dist/pinloop.js` becau
 }
 ```
 
-- [ ] **Step 4: Rewrite `packages/cli/src/pinloop.ts`'s shared imports**
+- [ ] **Step 4: Rewrite `packages/cli/src/talenttrove.ts`'s shared imports**
 
-Find this block (currently spanning what were lines 73–102, now inside `packages/cli/src/pinloop.ts` unchanged except for its new location):
+Find this block (currently spanning what were lines 73–102, now inside `packages/cli/src/talenttrove.ts` unchanged except for its new location):
 
 ```typescript
 import { coverageOf, type Coverage } from '../shared/coverage.ts';
@@ -421,7 +421,7 @@ import {
   type DeliveredPass,
   BILLING_PATH,
   billingLines,
-} from '@pinloop/shared';
+} from '@talenttrove/shared';
 import { openInBrowser, waitForBrowserSignIn } from './browser-login.ts';
 import { fractionOf, postingNamed, withSeparators } from './format.ts';
 ```
@@ -442,7 +442,7 @@ Replace with:
 
 ```typescript
 import { withSeparators } from './format.ts';
-import { MAX_IN_FLIGHT_REQUESTS, type ProgressEvent } from '@pinloop/shared';
+import { MAX_IN_FLIGHT_REQUESTS, type ProgressEvent } from '@talenttrove/shared';
 ```
 
 - [ ] **Step 6: Rewrite `packages/cli/src/format.ts`'s shared import**
@@ -456,7 +456,7 @@ import type { Coverage } from '../shared/coverage.ts';
 Replace with:
 
 ```typescript
-import type { Coverage } from '@pinloop/shared';
+import type { Coverage } from '@talenttrove/shared';
 ```
 
 - [ ] **Step 7: Rewrite `packages/cli/src/browser-login.ts`'s shared import**
@@ -490,7 +490,7 @@ import {
   SIGN_IN_SITE_URL_ENV_VAR,
   WAIT_FOR_SIGN_IN_MS,
   type DeliveredPass,
-} from '@pinloop/shared';
+} from '@talenttrove/shared';
 ```
 
 `packages/cli/src/rows.ts`, `packages/cli/src/version.ts`, and `packages/cli/src/paths.ts` import nothing from `shared` at all (confirmed by reading them) — they need no changes here.
@@ -510,7 +510,7 @@ npm install
 npx tsc --noEmit -p packages/cli
 ```
 
-Expected: exits 0, no type errors. This confirms every rewritten import in Steps 4–7 resolves correctly against `@pinloop/shared`'s built type declarations from Task 2.
+Expected: exits 0, no type errors. This confirms every rewritten import in Steps 4–7 resolves correctly against `@talenttrove/shared`'s built type declarations from Task 2.
 
 - [ ] **Step 10: Commit**
 
@@ -527,8 +527,8 @@ git commit -m "Move the CLI into packages/cli and rewire its shared imports"
 - Create: `packages/cli/scripts/build.mjs`
 
 **Interfaces:**
-- Consumes: `packages/cli/src/pinloop.ts` as the bundle entry point; `packages/shared/dist/index.js` (built in Task 2) as the thing being inlined.
-- Produces: `packages/cli/dist/pinloop.js`, a single self-contained, executable file with no runtime dependency on `@pinloop/shared` (its code is inlined) but still resolving `commander`, `picocolors`, `log-update`, and `cli-spinners` as real `node_modules` dependencies at runtime, exactly as today.
+- Consumes: `packages/cli/src/talenttrove.ts` as the bundle entry point; `packages/shared/dist/index.js` (built in Task 2) as the thing being inlined.
+- Produces: `packages/cli/dist/talenttrove.js`, a single self-contained, executable file with no runtime dependency on `@talenttrove/shared` (its code is inlined) but still resolving `commander`, `picocolors`, `log-update`, and `cli-spinners` as real `node_modules` dependencies at runtime, exactly as today.
 
 - [ ] **Step 1: Write `packages/cli/scripts/build.mjs`**
 
@@ -536,8 +536,8 @@ git commit -m "Move the CLI into packages/cli and rewire its shared imports"
 import { build } from 'esbuild';
 
 await build({
-  entryPoints: ['src/pinloop.ts'],
-  outfile: 'dist/pinloop.js',
+  entryPoints: ['src/talenttrove.ts'],
+  outfile: 'dist/talenttrove.js',
   bundle: true,
   platform: 'node',
   format: 'esm',
@@ -551,7 +551,7 @@ await build({
 });
 ```
 
-`@pinloop/shared` is deliberately **not** in the `external` list — that's what makes esbuild inline its compiled code straight into `dist/pinloop.js`, satisfying the Global Constraint that the published package never depends on it at install time.
+`@talenttrove/shared` is deliberately **not** in the `external` list — that's what makes esbuild inline its compiled code straight into `dist/talenttrove.js`, satisfying the Global Constraint that the published package never depends on it at install time.
 
 - [ ] **Step 2: Install esbuild and run the build**
 
@@ -560,12 +560,12 @@ npm install
 npm run build -w packages/cli
 ```
 
-Expected: `tsc --noEmit` (from Task 3's `package.json` script) exits 0, then esbuild runs and `packages/cli/dist/pinloop.js` is created.
+Expected: `tsc --noEmit` (from Task 3's `package.json` script) exits 0, then esbuild runs and `packages/cli/dist/talenttrove.js` is created.
 
-- [ ] **Step 3: Verify the bundle contains the shared code and no bare `@pinloop/shared` import remains**
+- [ ] **Step 3: Verify the bundle contains the shared code and no bare `@talenttrove/shared` import remains**
 
 ```bash
-grep -c "@pinloop/shared" packages/cli/dist/pinloop.js
+grep -c "@talenttrove/shared" packages/cli/dist/talenttrove.js
 ```
 
 Expected: `0` — if this is nonzero, the import wasn't inlined and the published package would be broken for real installers.
@@ -573,10 +573,10 @@ Expected: `0` — if this is nonzero, the import wasn't inlined and the publishe
 - [ ] **Step 4: Verify the bundled CLI actually runs**
 
 ```bash
-node packages/cli/dist/pinloop.js --help
+node packages/cli/dist/talenttrove.js --help
 ```
 
-Expected: exits 0, prints Commander's usage text (starts with `Usage: pinloop`). This is the concrete proof that bundling didn't silently break anything — a real Node process executing the real published entry point, not just a type-check.
+Expected: exits 0, prints Commander's usage text (starts with `Usage: talenttrove`). This is the concrete proof that bundling didn't silently break anything — a real Node process executing the real published entry point, not just a type-check.
 
 - [ ] **Step 5: Commit**
 
@@ -598,7 +598,7 @@ git commit -m "Bundle packages/cli with esbuild so it publishes with no workspac
 - Create: `packages/web/app/page.tsx`
 
 **Interfaces:**
-- Consumes: `@pinloop/shared`'s `coverageOf` (just to prove the import resolves from a Next.js build, not because the placeholder page needs it for real).
+- Consumes: `@talenttrove/shared`'s `coverageOf` (just to prove the import resolves from a Next.js build, not because the placeholder page needs it for real).
 - Produces: a `packages/web` app buildable with `next build`. No real feature pages — those are Plans 2 and 3.
 
 - [ ] **Step 1: Update `.gitignore` before generating any build output**
@@ -615,7 +615,7 @@ packages/web/.next/
 
 ```json
 {
-  "name": "@pinloop/web",
+  "name": "@talenttrove/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -625,7 +625,7 @@ packages/web/.next/
     "start": "next start"
   },
   "dependencies": {
-    "@pinloop/shared": "*",
+    "@talenttrove/shared": "*",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -680,7 +680,7 @@ export default nextConfig;
 import type { ReactNode } from 'react';
 
 export const metadata = {
-  title: 'Pinloop',
+  title: 'TalentTrove',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -695,13 +695,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 - [ ] **Step 6: Write `packages/web/app/page.tsx`**
 
 ```tsx
-import { coverageOf } from '@pinloop/shared';
+import { coverageOf } from '@talenttrove/shared';
 
 export default function HomePage() {
   const coverage = coverageOf(0, 0);
   return (
     <main>
-      <h1>Pinloop</h1>
+      <h1>TalentTrove</h1>
       <p>
         packages/web is wired up. Shared coverage helper says {coverage.covered}/{coverage.total}.
       </p>
@@ -710,7 +710,7 @@ export default function HomePage() {
 }
 ```
 
-This page exists only to prove `@pinloop/shared` resolves correctly from a Next.js build — it's replaced by the real dashboard in a later plan.
+This page exists only to prove `@talenttrove/shared` resolves correctly from a Next.js build — it's replaced by the real dashboard in a later plan.
 
 - [ ] **Step 7: Install and build**
 
@@ -719,7 +719,7 @@ npm install
 npm run build -w packages/web
 ```
 
-Expected: exits 0. Next.js's production build type-checks the whole app and prerenders `/`, so this fails loudly if the `@pinloop/shared` import, the tsconfig, or the JSX is wrong. `packages/web/.next/` is created by this step — Step 1's `.gitignore` update already excludes it, so the next step's `git add` won't pick it up.
+Expected: exits 0. Next.js's production build type-checks the whole app and prerenders `/`, so this fails loudly if the `@talenttrove/shared` import, the tsconfig, or the JSX is wrong. `packages/web/.next/` is created by this step — Step 1's `.gitignore` update already excludes it, so the next step's `git add` won't pick it up.
 
 - [ ] **Step 8: Commit**
 
@@ -752,10 +752,10 @@ Expected: exits 0. This is the real end-to-end proof — a clean install and bui
 - [ ] **Step 2: Re-verify the CLI still works after the clean rebuild**
 
 ```bash
-node packages/cli/dist/pinloop.js --help
+node packages/cli/dist/talenttrove.js --help
 ```
 
-Expected: exits 0, prints `Usage: pinloop ...`, same as Task 4 Step 4.
+Expected: exits 0, prints `Usage: talenttrove ...`, same as Task 4 Step 4.
 
 - [ ] **Step 3: Re-verify the shared package's tests still pass**
 

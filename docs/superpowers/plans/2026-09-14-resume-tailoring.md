@@ -841,7 +841,7 @@ git commit -m "web: add the shared tailored-resume PDF template"
 - Test: `packages/web/lib/tailoring/run-tailoring.test.ts`
 
 **Interfaces:**
-- Consumes: `getDb`, `closeDb` (`lib/db.ts`), `judgments`, `postings`, `profileDocuments`, `tailoredResumes`, `users` (`db/schema.ts`, Task 1), `extractStyleProfile`, `tailorResumeContent`, `StyleProfile` (Task 2), `TailoredResumeDocument` (Task 3), `parseResumePdf` (`lib/pdf.ts`), `JUDGE_PROMPT_NAME`, `QUICK_JUDGE_PROMPT_NAME`, `RESERVED_NAMES` (`@pinloop/shared`).
+- Consumes: `getDb`, `closeDb` (`lib/db.ts`), `judgments`, `postings`, `profileDocuments`, `tailoredResumes`, `users` (`db/schema.ts`, Task 1), `extractStyleProfile`, `tailorResumeContent`, `StyleProfile` (Task 2), `TailoredResumeDocument` (Task 3), `parseResumePdf` (`lib/pdf.ts`), `JUDGE_PROMPT_NAME`, `QUICK_JUDGE_PROMPT_NAME`, `RESERVED_NAMES` (`@talenttrove/shared`).
 - Produces:
   - `type TailoringSummary = { userId: string; tailored: number; failed: number }`
   - `runTailoring(callStyleExtraction?: typeof extractStyleProfile, callTailor?: typeof tailorResumeContent): Promise<TailoringSummary[]>` — both default to the real implementations; overridable for testing, mirroring `runJudging`'s injectable `callModel` parameter.
@@ -1098,7 +1098,7 @@ import { judgments, postings, profileDocuments, tailoredResumes, users } from '.
 import { extractStyleProfile, tailorResumeContent, type StyleProfile } from './openrouter.ts';
 import { TailoredResumeDocument } from './resume-template.tsx';
 import { parseResumePdf } from '../pdf.ts';
-import { JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES } from '@pinloop/shared';
+import { JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES } from '@talenttrove/shared';
 
 export type TailoringSummary = { userId: string; tailored: number; failed: number };
 
@@ -2034,7 +2034,7 @@ Expected: every tailoring/search/tabs test that needs a database reports SKIPPED
 - [ ] **Step 2: Run the full suite with a test database**
 
 ```bash
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test"
 npx vitest run
 ```
 
@@ -2056,7 +2056,7 @@ automated tests above are the full extent of what can be verified —
 OpenRouter key is available:
 
 ```bash
-DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test" \
+DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test" \
 OPENROUTER_API_KEY="<your key>" \
 JUDGE_MODEL="<a real model, e.g. anthropic/claude-sonnet-4.5>" \
 npm run db:tailor -w packages/web
@@ -2067,8 +2067,8 @@ with at least one account that has a resume uploaded
 verdict `strong` or `fair` for at least one posting (run `db:judge`
 first, or insert one directly), and that posting already ingested.
 Confirm the command prints a non-empty summary, a row appears in
-`tailored_resumes` (`docker exec -it pinloop-web-test-db psql -U postgres
--d pinloop_web_test -c "select id, user_id, posting_id, model from
+`tailored_resumes` (`docker exec -it talenttrove-web-test-db psql -U postgres
+-d talenttrove_web_test -c "select id, user_id, posting_id, model from
 tailored_resumes;"`), and — signed in as that account — `/search` shows a
 "Download tailored resume" link on that posting's card that downloads a
 real, openable PDF. This step needs a real, paid OpenRouter key and is

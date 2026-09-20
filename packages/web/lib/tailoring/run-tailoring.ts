@@ -7,7 +7,7 @@ import { judgments, postings, profileDocuments, tailoredResumes, users } from '.
 import { extractStyleProfile, tailorResumeContent, type StyleProfile } from './openrouter.ts';
 import { TailoredResumeDocument } from './resume-template.tsx';
 import { parseResumePdf } from '../pdf.ts';
-import { JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES, VERDICTS, rankOf } from '@pinloop/shared';
+import { JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES, VERDICTS, rankOf } from '@talenttrove/shared';
 
 export type TailoringSummary = { userId: string; tailored: number; failed: number };
 
@@ -18,7 +18,7 @@ const DEFAULT_BATCH_SIZE = 25;
 
 /**
  * The lowest verdict a judgment can carry and still be worth tailoring a
- * resume for. Derived from the shared four-word scale (`@pinloop/shared`'s
+ * resume for. Derived from the shared four-word scale (`@talenttrove/shared`'s
  * `VERDICTS`) rather than spelled out as a literal array here, so this file
  * never has its own opinion about what the words are or their order — see
  * `packages/shared/src/verdicts.ts` for why that matters.

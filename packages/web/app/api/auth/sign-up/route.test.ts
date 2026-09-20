@@ -40,7 +40,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/auth/sign-up', () => {
     const response = await POST(jsonRequest({ email: 'a@example.com', password: 'password123' }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ email: 'a@example.com' });
-    expect(response.headers.get('set-cookie')).toContain('pinloop_session=');
+    expect(response.headers.get('set-cookie')).toContain('talenttrove_session=');
 
     const [row] = await sql`select email from users where email = 'a@example.com'`;
     expect(row?.email).toBe('a@example.com');

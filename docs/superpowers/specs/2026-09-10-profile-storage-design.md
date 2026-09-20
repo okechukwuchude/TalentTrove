@@ -6,10 +6,10 @@ Date: 2026-09-10
 ## Why
 
 The second of five sub-projects replacing `packages/web`'s dependence on
-Pinloop's hosted server, following
+TalentTrove's hosted server, following
 `2026-09-09-auth-database-foundation-design.md`. That sub-project left
 `/api/profile` and `/api/profile/[name]` stubbed to `501` ("profile storage
-is not built yet") once auth stopped forwarding a Pinloop access token for
+is not built yet") once auth stopped forwarding a TalentTrove access token for
 them to proxy with. This sub-project replaces those stubs with real
 implementations backed by our own Postgres — storing the resume (a PDF
 file) and every text document (`constraints`, `background`, `preferences`,
@@ -199,4 +199,4 @@ otherwise won't open) throws; the route catches it and responds with
   `text-document-card.tsx`, `profile-editor.tsx`,
   `whole-profile-usage.tsx`, `profile-queries.ts`) — they already expect
   exactly the request/response shapes this design produces, since they
-  were built against the real (now-stubbed) Pinloop-backed contract.
+  were built against the real (now-stubbed) TalentTrove-backed contract.

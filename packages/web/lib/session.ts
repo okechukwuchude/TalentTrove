@@ -1,6 +1,6 @@
 import { sealData, unsealData } from 'iron-session';
 
-export const SESSION_COOKIE_NAME = 'pinloop_session';
+export const SESSION_COOKIE_NAME = 'talenttrove_session';
 
 export type SessionData = { token?: string };
 

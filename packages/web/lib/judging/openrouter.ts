@@ -1,4 +1,4 @@
-import { VERDICTS, type Verdict } from '@pinloop/shared';
+import { VERDICTS, type Verdict } from '@talenttrove/shared';
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 

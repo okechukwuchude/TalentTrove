@@ -1,4 +1,4 @@
-# @pinloop/web
+# @talenttrove/web
 
 ## Local setup
 
@@ -244,26 +244,26 @@ docker --version
 ### 2. Start a local test Postgres
 
 ```bash
-docker run --name pinloop-web-test-db -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=pinloop_web_test -p 5433:5432 -d postgres:16
+docker run --name talenttrove-web-test-db -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=talenttrove_web_test -p 5433:5432 -d postgres:16
 ```
 
 This runs Postgres 16 in the background on port `5433` (deliberately not
 the default `5432`, so it won't collide with anything else already
-running) with a database named `pinloop_web_test`. Confirm it's up with
+running) with a database named `talenttrove_web_test`. Confirm it's up with
 `docker ps`. You only need to `run` it once — after that, `docker start
-pinloop-web-test-db` brings the same container back.
+talenttrove-web-test-db` brings the same container back.
 
 ### 3. Point the test suite at it
 
 ```bash
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test"
 ```
 
 PowerShell:
 
 ```powershell
-$env:TEST_DATABASE_URL = "postgres://postgres:postgres@localhost:5433/pinloop_web_test"
+$env:TEST_DATABASE_URL = "postgres://postgres:postgres@localhost:5433/talenttrove_web_test"
 ```
 
 This only lasts for the current shell session — set it again in every new
@@ -289,9 +289,9 @@ writing — every skip in this repo is the `TEST_DATABASE_URL` gate).
 ### Managing the container
 
 ```bash
-docker stop pinloop-web-test-db      # stop it
-docker start pinloop-web-test-db     # bring the same one back
-docker rm -f pinloop-web-test-db     # delete it entirely (e.g. to reset all data)
+docker stop talenttrove-web-test-db      # stop it
+docker start talenttrove-web-test-db     # bring the same one back
+docker rm -f talenttrove-web-test-db     # delete it entirely (e.g. to reset all data)
 ```
 
 If you deleted it, just re-run the `docker run ...` command from step 2 to
@@ -315,7 +315,7 @@ postings ingestion"). Before configuring any real source, or if you just
 want fixed, predictable data for a quick manual check:
 
 ```bash
-DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test" npm run db:seed -w packages/web
+DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test" npm run db:seed -w packages/web
 npm run dev -w packages/web
 ```
 
@@ -324,13 +324,13 @@ Then, with the dev server running:
 1. Sign up / sign in.
 2. Go to `/tabs`, create a tab.
 3. Find a seeded posting's id — easiest way is querying the container
-   directly: `docker exec -it pinloop-web-test-db psql -U postgres -d
-   pinloop_web_test -c "select id, title from postings;"`.
+   directly: `docker exec -it talenttrove-web-test-db psql -U postgres -d
+   talenttrove_web_test -c "select id, title from postings;"`.
 4. Add that posting to your tab (via the UI once search exists, or by
    calling `POST /api/tabs/<name>/add` directly with `{"ids": ["<id>"]}`
    for now).
 5. Delete that posting row from the database (`docker exec -it
-   pinloop-web-test-db psql -U postgres -d pinloop_web_test -c "delete
+   talenttrove-web-test-db psql -U postgres -d talenttrove_web_test -c "delete
    from postings where id = '<id>';"`) and reload the tab page — you
    should see the "no longer present" banner instead of the card
    silently vanishing.

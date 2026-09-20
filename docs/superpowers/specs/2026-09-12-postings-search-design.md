@@ -12,7 +12,7 @@ beyond the dev seed script" for its own spec, next. This is that spec.
 
 `/api/search` and `/api/companies` have been `501` since
 `2026-09-09-auth-database-foundation-design.md` retired the hosted
-`api.pinloop.ai` backend they used to proxy to. This piece replaces that
+`api.talenttrove.ai` backend they used to proxy to. This piece replaces that
 backend function entirely: a self-hosted ingestion pipeline that populates
 `postings` from real sources, and word/filter search over Postgres against
 what it collects.
@@ -211,7 +211,7 @@ guard already in each stays as the first check, unchanged.
     nothing when `interpretation` is absent, and this endpoint has no
     ceiling/dropped-postings concept yet to report — fabricating a
     covered/total pair with nothing behind it would be worse than omitting
-    it. (`coverageOf` from `@pinloop/shared` is not used here for that
+    it. (`coverageOf` from `@talenttrove/shared` is not used here for that
     reason; it has nothing meaningful to compute yet.)
   - No confirm-gate: reading your own postings costs nothing and isn't
     unattended automation, unlike judge.

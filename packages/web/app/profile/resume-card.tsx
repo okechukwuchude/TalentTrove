@@ -1,7 +1,7 @@
 'use client';
 
 import { type ChangeEvent, useState } from 'react';
-import { FILE_CAP } from '@pinloop/shared';
+import { FILE_CAP } from '@talenttrove/shared';
 import { useProfileDocuments, useUploadResume } from '../../lib/profile-queries.ts';
 import { Card, CardContent, CardHeader } from '../../components/ui/card.tsx';
 

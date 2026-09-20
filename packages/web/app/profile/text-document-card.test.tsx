@@ -71,7 +71,7 @@ describe('TextDocumentCard', () => {
 
     await screen.findByLabelText('Judge prompt');
     expect(screen.queryByRole('button', { name: /reset to default/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/using the default pinloop ships/i)).toBeInTheDocument();
+    expect(screen.getByText(/using the default talenttrove ships/i)).toBeInTheDocument();
   });
 
   it('shows an error instead of an empty editable form when the document fails to load', async () => {

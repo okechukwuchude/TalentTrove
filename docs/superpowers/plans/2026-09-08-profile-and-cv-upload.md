@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A signed-in person can upload their resume as a PDF, edit their `constraints`/`background`/`preferences` text documents, and manage the `judge-prompt`/`quick-judge-prompt` overrides — reaching parity with `pinloop profile *`.
+**Goal:** A signed-in person can upload their resume as a PDF, edit their `constraints`/`background`/`preferences` text documents, and manage the `judge-prompt`/`quick-judge-prompt` overrides — reaching parity with `talenttrove profile *`.
 
 **Architecture:** BFF route handlers under `app/api/profile/*` proxy to the same `/profile` endpoints the CLI already calls (`GET /profile` for the list, `GET/POST/DELETE /profile/{name}` per document), reusing `callAsAccount` from Plan 2 (extended here to carry raw bytes for the PDF upload, alongside its existing JSON-body support). A new `requireSession` guard protects every route, and — because a mid-request token renewal must be persisted back into the cookie or a later request could fail outright — every protected route re-seals the session when `callAsAccount` reports a `renewedPass`. TanStack Query drives the client side: one query per document's content, one mutation each for saving text, uploading the resume, and resetting a prompt to default. `/profile` itself is a Server Component that redirects a signed-out visitor to `/sign-in`, delegating the actual interactive editor to client components underneath it.
 
@@ -16,7 +16,7 @@
 
 - Every `/api/profile/*` route requires a valid session (`requireSession`); an unauthenticated request gets `401`. The `/profile` page itself redirects a signed-out visitor to `/sign-in` server-side, before any client code runs.
 - Client-side file validation (MIME/extension, size) is a fast-fail UX convenience only. The server's own PDF-header and cap checks remain the real authority — never treat the client check as the actual gate.
-- Every byte cap shown in the UI (`PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP`, `FILE_CAP`) is imported from `@pinloop/shared`, never hand-copied, so it can't drift from the value the CLI and server already agree on.
+- Every byte cap shown in the UI (`PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP`, `FILE_CAP`) is imported from `@talenttrove/shared`, never hand-copied, so it can't drift from the value the CLI and server already agree on.
 - Whenever `callAsAccount` reports a `renewedPass` (the access token was refreshed mid-request), the route handler's response must re-seal and re-set the session cookie before returning. Skipping this risks a subsequent request failing outright if the backend's refresh token turns out to be single-use (the spec's still-open question about refresh token rotation) — the old token would still be the one sitting in the cookie.
 - `"type": "module"` and the monorepo's `strict`/`noUncheckedIndexedAccess` TypeScript conventions carry over.
 
@@ -25,8 +25,8 @@
 ### Task 1: Extend the BFF proxy for raw-bytes uploads, and add the session guard
 
 **Files:**
-- Modify: `packages/web/lib/pinloop-server.ts` (add `bytes`/`contentType` support to `callAsAccount`)
-- Modify: `packages/web/lib/pinloop-server.test.ts` (new test for the bytes path)
+- Modify: `packages/web/lib/talenttrove-server.ts` (add `bytes`/`contentType` support to `callAsAccount`)
+- Modify: `packages/web/lib/talenttrove-server.test.ts` (new test for the bytes path)
 - Create: `packages/web/lib/require-session.ts`
 - Create: `packages/web/lib/require-session.test.ts`
 
@@ -36,7 +36,7 @@
 
 - [ ] **Step 1: Write the failing test for raw-bytes calls**
 
-Add to `packages/web/lib/pinloop-server.test.ts`:
+Add to `packages/web/lib/talenttrove-server.test.ts`:
 
 ```typescript
 describe('callAsAccount with raw bytes', () => {
@@ -59,14 +59,14 @@ describe('callAsAccount with raw bytes', () => {
 - [ ] **Step 2: Run it, verify it fails**
 
 ```bash
-npx vitest run packages/web/lib/pinloop-server.test.ts
+npx vitest run packages/web/lib/talenttrove-server.test.ts
 ```
 
 Expected: FAIL — `bytes`/`contentType` aren't accepted by the current options type/implementation, so `init.headers['Content-Type']` is `undefined`, not `'application/pdf'`.
 
 - [ ] **Step 3: Extend the implementation**
 
-In `packages/web/lib/pinloop-server.ts`, widen `CallOptions` and `rawCall`:
+In `packages/web/lib/talenttrove-server.ts`, widen `CallOptions` and `rawCall`:
 
 ```typescript
 type CallOptions = {
@@ -82,7 +82,7 @@ async function rawCall(
   options: CallOptions,
   doFetch: typeof fetch,
 ): Promise<{ json: unknown; status: number }> {
-  const headers: Record<string, string> = { 'pinloop-web-version': '0.0.0' };
+  const headers: Record<string, string> = { 'talenttrove-web-version': '0.0.0' };
   if (options.token) headers['Authorization'] = `Bearer ${options.token}`;
   if (options.bytes !== undefined) headers['Content-Type'] = options.contentType ?? 'application/octet-stream';
   else if (options.body !== undefined) headers['Content-Type'] = 'application/json';
@@ -116,7 +116,7 @@ export async function callAsAccount(
 - [ ] **Step 4: Run it, verify it passes, then run the whole file**
 
 ```bash
-npx vitest run packages/web/lib/pinloop-server.test.ts
+npx vitest run packages/web/lib/talenttrove-server.test.ts
 ```
 
 Expected: 14 passed, 0 failed. (This file has grown since this plan was written — Plan 2's own final review added a test, and a post-merge sign-in rework added five more for direct email-code verification — so it's 13 existing tests plus this one, not the "6 from Plan 2" originally assumed here. Whatever the actual pre-existing count is, confirm all of them still pass alongside the new one — that's what actually matters.)
@@ -184,7 +184,7 @@ Expected: FAIL — the file doesn't exist yet.
 
 ```typescript
 // packages/web/lib/require-session.ts
-import type { Pass } from './pinloop-server.ts';
+import type { Pass } from './talenttrove-server.ts';
 import { type SessionData, readSession, sealSession, sessionCookieHeader } from './session.ts';
 
 export type SessionResult = { pass: Pass; session: SessionData } | { unauthorized: Response };
@@ -242,7 +242,7 @@ git commit -m "Support raw-bytes uploads in the BFF proxy, add the session guard
 - Create: `packages/web/app/api/profile/[name]/route.test.ts`
 
 **Interfaces:**
-- Consumes: `callAsAccount`, `PinloopServerError` (Task 1's extended version); `requireSession`, `withRenewedCookie` (Task 1).
+- Consumes: `callAsAccount`, `TalentTroveServerError` (Task 1's extended version); `requireSession`, `withRenewedCookie` (Task 1).
 - Produces: `GET /api/profile` (list), `GET /api/profile/[name]` (one document, with text), `POST /api/profile/[name]` (store — JSON `{text}` or raw PDF bytes depending on `Content-Type`), `DELETE /api/profile/[name]` (remove, used for "reset to default"). Task 3's hooks call all four.
 
 - [ ] **Step 1: Write the failing tests for `GET /api/profile`**
@@ -304,7 +304,7 @@ Expected: FAIL — the route doesn't exist yet.
 
 ```typescript
 // packages/web/app/api/profile/route.ts
-import { PinloopServerError, callAsAccount } from '../../../lib/pinloop-server.ts';
+import { TalentTroveServerError, callAsAccount } from '../../../lib/talenttrove-server.ts';
 import { requireSession, withRenewedCookie } from '../../../lib/require-session.ts';
 
 export async function GET(request: Request): Promise<Response> {
@@ -316,8 +316,8 @@ export async function GET(request: Request): Promise<Response> {
     const rows = (json as { rows?: unknown } | undefined)?.rows ?? [];
     return withRenewedCookie(auth.session, Response.json({ rows }), renewedPass);
   } catch (error) {
-    const message = error instanceof PinloopServerError ? error.message : 'could not load your profile';
-    const status = error instanceof PinloopServerError ? error.status : 500;
+    const message = error instanceof TalentTroveServerError ? error.message : 'could not load your profile';
+    const status = error instanceof TalentTroveServerError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
 }
@@ -436,7 +436,7 @@ Expected: FAIL — the route doesn't exist yet.
 
 ```typescript
 // packages/web/app/api/profile/[name]/route.ts
-import { PinloopServerError, callAsAccount } from '../../../../lib/pinloop-server.ts';
+import { TalentTroveServerError, callAsAccount } from '../../../../lib/talenttrove-server.ts';
 import { requireSession, withRenewedCookie } from '../../../../lib/require-session.ts';
 
 type RouteParams = { params: Promise<{ name: string }> };
@@ -453,8 +453,8 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Re
     );
     return withRenewedCookie(auth.session, Response.json(json as Record<string, unknown>), renewedPass);
   } catch (error) {
-    const message = error instanceof PinloopServerError ? error.message : `could not load '${name}'`;
-    const status = error instanceof PinloopServerError ? error.status : 500;
+    const message = error instanceof TalentTroveServerError ? error.message : `could not load '${name}'`;
+    const status = error instanceof TalentTroveServerError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
 }
@@ -486,8 +486,8 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
     const response = Response.json((result.json ?? {}) as Record<string, unknown>);
     return withRenewedCookie(auth.session, response, result.renewedPass);
   } catch (error) {
-    const message = error instanceof PinloopServerError ? error.message : `could not store '${name}'`;
-    const status = error instanceof PinloopServerError ? error.status : 500;
+    const message = error instanceof TalentTroveServerError ? error.message : `could not store '${name}'`;
+    const status = error instanceof TalentTroveServerError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
 }
@@ -504,12 +504,12 @@ export async function DELETE(request: Request, { params }: RouteParams): Promise
     return withRenewedCookie(auth.session, Response.json({ deleted: true }), renewedPass);
   } catch (error) {
     // Deleting a document that was never stored is treated as already done —
-    // mirrors removeDocument() in pinloop.ts today.
-    if (error instanceof PinloopServerError && error.status === 404) {
+    // mirrors removeDocument() in talenttrove.ts today.
+    if (error instanceof TalentTroveServerError && error.status === 404) {
       return Response.json({ deleted: true });
     }
-    const message = error instanceof PinloopServerError ? error.message : `could not delete '${name}'`;
-    const status = error instanceof PinloopServerError ? error.status : 500;
+    const message = error instanceof TalentTroveServerError ? error.message : `could not delete '${name}'`;
+    const status = error instanceof TalentTroveServerError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
 }
@@ -573,7 +573,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
 
 Modify `packages/web/app/layout.tsx` to wrap `{children}`. **Note:** this plan was written before a
 post-merge rename of the app to "TalentTrove" — the real current file has `title: 'TalentTrove'`, not
-`title: 'Pinloop'` as shown below. Keep whatever the file's current title value actually is; only add
+`title: 'TalentTrove'` as shown below. Keep whatever the file's current title value actually is; only add
 the `<QueryProvider>` wrap, don't revert the title:
 
 ```tsx
@@ -763,7 +763,7 @@ git commit -m "Add React Query provider and profile data hooks"
 - Create: `packages/web/app/profile/text-document-card.test.tsx`
 
 **Interfaces:**
-- Consumes: `useUploadResume` (Task 3), `FILE_CAP` (`@pinloop/shared`); `useProfileDocumentText`, `useSaveTextDocument`, `useResetToDefault` (Task 3), `PER_DOCUMENT_CAP` (`@pinloop/shared`).
+- Consumes: `useUploadResume` (Task 3), `FILE_CAP` (`@talenttrove/shared`); `useProfileDocumentText`, `useSaveTextDocument`, `useResetToDefault` (Task 3), `PER_DOCUMENT_CAP` (`@talenttrove/shared`).
 - Produces: `<ResumeCard />`, `<TextDocumentCard name label perDocumentCap resettable? />`. Task 5's page assembles both.
 
 - [ ] **Step 1: Write the failing tests for `ResumeCard`**
@@ -850,7 +850,7 @@ Expected: FAIL — the component doesn't exist yet.
 'use client';
 
 import { type ChangeEvent, useState } from 'react';
-import { FILE_CAP } from '@pinloop/shared';
+import { FILE_CAP } from '@talenttrove/shared';
 import { useUploadResume } from '../../lib/profile-queries.ts';
 
 export function ResumeCard() {
@@ -988,7 +988,7 @@ describe('TextDocumentCard', () => {
 
     await screen.findByLabelText('Judge prompt');
     expect(screen.queryByRole('button', { name: /reset to default/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/using the default pinloop ships/i)).toBeInTheDocument();
+    expect(screen.getByText(/using the default talenttrove ships/i)).toBeInTheDocument();
   });
 });
 ```
@@ -1044,7 +1044,7 @@ export function TextDocumentCard({
         <p>Loading…</p>
       ) : (
         <>
-          {usingDefault && <p>Using the default Pinloop ships. Edit below to store your own.</p>}
+          {usingDefault && <p>Using the default TalentTrove ships. Edit below to store your own.</p>}
           <textarea
             aria-label={label}
             value={draft}
@@ -1108,7 +1108,7 @@ git commit -m "Add resume upload and text document editor components"
 - Modify: `packages/web/app/page.tsx` (add a link to `/profile` when signed in)
 
 **Interfaces:**
-- Consumes: `ResumeCard`, `TextDocumentCard` (Task 4); `useProfileDocuments` (Task 3); `PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP` (`@pinloop/shared`); `readSession` (Plan 2).
+- Consumes: `ResumeCard`, `TextDocumentCard` (Task 4); `useProfileDocuments` (Task 3); `PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP` (`@talenttrove/shared`); `readSession` (Plan 2).
 - Produces: the assembled `/profile` page, redirecting a signed-out visitor to `/sign-in`.
 
 - [ ] **Step 1: Write `WholeProfileUsage`**
@@ -1119,7 +1119,7 @@ Not unit tested separately — it's a small, purely presentational aggregation o
 // packages/web/app/profile/whole-profile-usage.tsx
 'use client';
 
-import { WHOLE_PROFILE_CAP } from '@pinloop/shared';
+import { WHOLE_PROFILE_CAP } from '@talenttrove/shared';
 import { useProfileDocuments } from '../../lib/profile-queries.ts';
 
 export function WholeProfileUsage() {
@@ -1144,7 +1144,7 @@ export function WholeProfileUsage() {
 // packages/web/app/profile/profile-editor.tsx
 'use client';
 
-import { PER_DOCUMENT_CAP } from '@pinloop/shared';
+import { PER_DOCUMENT_CAP } from '@talenttrove/shared';
 import { ResumeCard } from './resume-card.tsx';
 import { TextDocumentCard } from './text-document-card.tsx';
 import { WholeProfileUsage } from './whole-profile-usage.tsx';
@@ -1239,7 +1239,7 @@ Expected: exits 0.
 4. Try uploading a `.txt` file renamed to `.pdf`, and a file over 10MB — expect the client-side refusal message, with no network request going out for either (check the browser's network tab).
 5. Type into "Background," confirm the byte counter updates and Save is disabled until the text changes.
 6. Save it, reload the page — confirm the saved text is still there.
-7. On "Judge prompt," confirm it shows "Using the default Pinloop ships" with no reset button, type something, save it, confirm the reset button now appears, click it, confirm it reverts to showing the default-in-use state again.
+7. On "Judge prompt," confirm it shows "Using the default TalentTrove ships" with no reset button, type something, save it, confirm the reset button now appears, click it, confirm it reverts to showing the default-in-use state again.
 
 - [ ] **Step 8: Commit**
 
@@ -1248,4 +1248,4 @@ git add packages/web/app/profile packages/web/app/page.tsx
 git commit -m "Assemble the profile page: resume upload, text documents, judge-prompt reset"
 ```
 
-At this point: a signed-in person can manage their whole profile — including uploading and replacing their resume — entirely through the web app, reaching feature parity with `pinloop profile *`. Search, judge, and automation (routines/schedules/watches) remain as separate follow-on plans per the spec.
+At this point: a signed-in person can manage their whole profile — including uploading and replacing their resume — entirely through the web app, reaching feature parity with `talenttrove profile *`. Search, judge, and automation (routines/schedules/watches) remain as separate follow-on plans per the spec.

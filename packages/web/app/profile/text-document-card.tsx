@@ -51,7 +51,7 @@ export function TextDocumentCard({
           <>
             {usingDefault && (
               <p className="text-sm text-muted-foreground">
-                Using the default Pinloop ships. Edit below to store your own.
+                Using the default TalentTrove ships. Edit below to store your own.
               </p>
             )}
             <Textarea

@@ -1,69 +1,43 @@
-# Pinloop CLI
+# TalentTrove
 
-[![npm version](https://img.shields.io/npm/v/pinloop)](https://www.npmjs.com/package/pinloop)
-[![license: MIT](https://img.shields.io/npm/l/pinloop)](LICENSE)
-[![node >= 22](https://img.shields.io/node/v/pinloop)](https://nodejs.org)
-[![website](https://img.shields.io/badge/pinloop.ai-website-blue)](https://pinloop.ai)
+TalentTrove is a job search web app. It holds a large collection of
+frequently updated job postings, keeps your resume and other profile
+documents, and calls AI models to judge postings against what it knows
+about you — then tailors a resume and cover letter for the ones worth
+applying to.
 
-Pinloop is a job search tool built for your coding agent to run from a terminal.
+## Structure
 
-It holds a large collection of frequently updated job postings, can hold your
-resume and any other preferences, and calls AI models to evaluate postings
-against what it knows about you.
+This is an npm workspaces monorepo:
 
-https://github.com/user-attachments/assets/3657dcdc-4cac-4778-8cc6-5ca3b40e5fed
+- `packages/web` — the Next.js web app: sign-in, profile, search, tabs,
+  routines, judging, tailoring, and applying. See
+  [`packages/web/README.md`](packages/web/README.md) for environment
+  variables, running the app locally, and the database-backed test setup.
+- `packages/shared` — logic shared between the web app's server-side route
+  handlers and its client-side components (the reserved profile-document
+  registry and default judge prompts, the coverage-fraction convention, and
+  verdict wording), so neither side keeps its own copy.
 
-## Try it
-
-You don't run anything yourself. Paste this sentence into your coding agent
-(Claude Code, Codex, Cursor, or similar) and it installs Pinloop and walks you
-through setup:
-
-```
-Run npm install -g pinloop, then run pinloop welcome and follow the instructions.
-```
-
-## Install
+## Run it locally
 
 Needs Node 22 or newer.
 
 ```
-npm install -g pinloop
+npm install
+npm run build -w packages/shared
+npm run dev -w packages/web
 ```
 
-## Start
+See [`packages/web/README.md`](packages/web/README.md) for the environment
+variables the app needs (database, session secret, postings ingestion,
+judging, and resume tailoring).
 
-```
-pinloop
-```
+## Deploy
 
-Run on its own, `pinloop` prints instructions written for a coding agent.
-`pinloop welcome` gets your coding agent to walk you through a more structured
-onboarding flow, and `pinloop guide` gives it the full usage instructions.
-
-## Accounts and payments
-
-Run `pinloop login` to make an account.
-
-The commands talk to Pinloop's servers, so everything except the guide needs an
-account. Login goes through a browser, with no password.
-
-A free account gets a limited number of judged postings and semantic searches per
-month. You can use your own coding agent subscription of choice to instead have the
-agent judge postings and upload those judgments to Pinloop for free.
-Run `pinloop upgrade` to raise the free plan's limits and gain access
-to scheduled routines and watches which run unattended to review postings even when
-your laptop is closed. Keyword search, filtering, saved lists of postings,
-stored profile documents (e.g., resumes), and non-scheduled routines cost nothing.
+The web app is meant to be deployed on Vercel (`packages/web/vercel.json`
+configures the scheduled ingestion/judging/tailoring cron routes).
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-The license covers the CLI only.
-
-## Links
-
-- Home: https://pinloop.ai
-- Privacy: https://pinloop.ai/privacy
-- Terms: https://pinloop.ai/terms

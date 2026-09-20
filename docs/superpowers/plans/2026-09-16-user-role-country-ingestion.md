@@ -17,7 +17,7 @@
 - `(role, country)` pairs are deduped across *all* accounts before either adapter is called — never call once per account for a pair other accounts already cover.
 - `postings`, judging, tailoring, apply, and `routines` are not modified by this plan.
 - Every DB-backed test in this repo uses `describe.skipIf(!process.env.TEST_DATABASE_URL)` — run it against a real Postgres (`TEST_DATABASE_URL` set) at least once per the README's own testing instructions; a SKIPPED result without that is not evidence the code works.
-- All commands below run from the repo root (`C:\Users\okech\OneDrive - Rivia\Documents 1\GitHub\pinloop-cli`) unless a task says otherwise; the test runner is `npx vitest run <path>` (root `vitest.config.ts` already includes `packages/web/**/*.test.{ts,tsx}`).
+- All commands below run from the repo root (`C:\Users\okech\OneDrive - Rivia\Documents 1\GitHub\talenttrove-cli`) unless a task says otherwise; the test runner is `npx vitest run <path>` (root `vitest.config.ts` already includes `packages/web/**/*.test.{ts,tsx}`).
 
 ---
 
@@ -1347,7 +1347,7 @@ In `packages/web/app/profile/profile-editor.tsx`, add the import and render it r
 ```tsx
 'use client';
 
-import { PER_DOCUMENT_CAP } from '@pinloop/shared';
+import { PER_DOCUMENT_CAP } from '@talenttrove/shared';
 import { ResumeCard } from './resume-card.tsx';
 import { RolePreferencesCard } from './role-preferences-card.tsx';
 import { TextDocumentCard } from './text-document-card.tsx';

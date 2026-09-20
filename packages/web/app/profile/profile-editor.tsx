@@ -1,6 +1,6 @@
 'use client';
 
-import { PER_DOCUMENT_CAP } from '@pinloop/shared';
+import { PER_DOCUMENT_CAP } from '@talenttrove/shared';
 import { ResumeCard } from './resume-card.tsx';
 import { RolePreferencesCard } from './role-preferences-card.tsx';
 import { RolePreferencesResults } from './role-preferences-results.tsx';

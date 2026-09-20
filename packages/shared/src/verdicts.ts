@@ -12,18 +12,15 @@
  * The file that builds the model request puts the four words in the request as
  * the only answers the model may give, and refuses an answer outside them. The
  * judge run and the judgment listing check a typed verdict against them. And
- * the command line prints a line for every posting a keep word dropped, which
- * means the command line needs the wording of that line too — `dropReason`
+ * a UI reports "dropped: judged weak, below fair" for every posting a keep
+ * word dropped, which needs the wording of that line too — `dropReason`
  * below — without needing anything else the judge run does.
  *
- * That last point is why this file sits under src/shared/ rather than inside
- * the judge run. `pinloop judge --keep fair` prints "dropped <id>: judged weak,
- * below fair" on the caller's own machine, from a one-line function. Before
- * this file existed that one line lived in src/core/judge.ts, so the command
- * line imported the whole judge run to get it, and through the judge run it
- * imported the model provider, the search, the fetch, the profile reader and
- * the embedder — about a dozen files of server code that the published
- * `pinloop` package has no use for and must not carry.
+ * That last point is why this file sits under packages/shared/ rather than
+ * inside the judge run: a route handler and a React component both need the
+ * four words and dropReason without pulling in the model provider, the
+ * search, the fetch, the profile reader and the embedder that the judge run
+ * itself depends on.
  *
  * Nothing in this file opens a connection, reads a credential, calls a model or
  * touches the filesystem. It is four words and two functions over them.
@@ -32,9 +29,9 @@
 /**
  * The four words a verdict may be, worst to best.
  *
- * Growing or reordering this list changes what the model is allowed to answer,
- * what `--keep` compares against, and what `pinloop judgment put` will store,
- * all at once. It is a spec change (specs/feature-judge.md), never a tidy-up.
+ * Growing or reordering this list changes what the model is allowed to answer
+ * and what a "keep at" filter compares against, all at once. It is a spec
+ * change (specs/feature-judge.md), never a tidy-up.
  */
 export const VERDICTS = ['no', 'weak', 'fair', 'strong'] as const;
 

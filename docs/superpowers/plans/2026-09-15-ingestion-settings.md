@@ -15,7 +15,7 @@
 - **DB overrides env; env is never removed.** Every adapter read becomes `(await getSetting(key)) ?? process.env.ENV_VAR`. An empty string saved via the API clears the DB row (reverts to the env fallback) rather than storing `''`.
 - **Settings table:** `app_settings(key text primary key, value text not null, updated_at timestamptz not null default now())`. One row per key; no row means "use the env var."
 - **Ten setting keys, exactly these:** `jsearch_api_key` (secret), `jsearch_queries`, `jsearch_country` (new — no adapter behavior for this exists today), `adzuna_app_id` (secret), `adzuna_app_key` (secret), `adzuna_countries`, `adzuna_queries`, `greenhouse_companies`, `lever_companies`, `ashby_companies`.
-- **Secrets are encrypted at rest**, AES-256-GCM, key derived from `SESSION_SECRET` via `scryptSync` with a fixed purpose-salt `'pinloop-settings-v1'` (no new required env var — every deployment already has `SESSION_SECRET`). Stored as `base64(iv):base64(authTag):base64(ciphertext)`.
+- **Secrets are encrypted at rest**, AES-256-GCM, key derived from `SESSION_SECRET` via `scryptSync` with a fixed purpose-salt `'talenttrove-settings-v1'` (no new required env var — every deployment already has `SESSION_SECRET`). Stored as `base64(iv):base64(authTag):base64(ciphertext)`.
 - **Secrets never round-trip to the client.** The settings API returns only `isSet: boolean` for secret keys, never their value — the same principle as a password field.
 - **Access:** any signed-in user (`requireSession`), matching every other page in this app. No admin/role concept is introduced.
 - **DB-gated tests follow this repo's existing convention exactly:** `describe.skipIf(!testDatabaseUrl)(...)`, `runMigrations(testDatabaseUrl)` in `beforeAll`, cleanup via raw `sql` deletes in `afterEach`, `sql.end()` in `afterAll`. These tests only run with `TEST_DATABASE_URL` set; without it they're skipped (not failed) — that's expected and matches every other DB-backed test in this repo (e.g. `lib/routines-db.test.ts`).
@@ -169,7 +169,7 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:
 // colliding with some other scryptSync(SESSION_SECRET, ...) use elsewhere in
 // this app. SESSION_SECRET itself, unique per deployment and already
 // required to be high-entropy, is the actual secret input.
-const SALT = 'pinloop-settings-v1';
+const SALT = 'talenttrove-settings-v1';
 
 function deriveKey(): Buffer {
   const secret = process.env.SESSION_SECRET;

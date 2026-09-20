@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
-import { overFileCapRefusal, perDocumentRefusal, wrongKindRefusal } from '@pinloop/shared';
+import { overFileCapRefusal, perDocumentRefusal, wrongKindRefusal } from '@talenttrove/shared';
 import { runMigrations } from '../../../../db/migrate.ts';
 import { sealSession, sessionCookieHeader } from '../../../../lib/session.ts';
 
@@ -102,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)('GET /api/profile/[name]', () => {
     expect(response.status).toBe(400);
     const body = (await response.json()) as { error: string };
     // wrongKindRefusal('resume') is the resume-specific message from
-    // @pinloop/shared's registry.ts ("the resume holds a PDF file, not
+    // @talenttrove/shared's registry.ts ("the resume holds a PDF file, not
     // text..."), not the generic "holds a file, not text." form — its
     // wording is pinned per CLAUDE.md, so the assertion is widened to
     // match either phrasing rather than editing the shared string.
@@ -217,7 +217,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/profile/[name]', () => {
     expect(response.status).toBe(400);
     const body = (await response.json()) as { error: string };
     // wrongKindRefusal('resume') is the resume-specific message from
-    // @pinloop/shared's registry.ts ("the resume holds a PDF file, not
+    // @talenttrove/shared's registry.ts ("the resume holds a PDF file, not
     // text..."), not the generic "holds a file, not text." form -- its
     // wording is pinned per CLAUDE.md, so the assertion is widened to
     // match either phrasing rather than editing the shared string. Same

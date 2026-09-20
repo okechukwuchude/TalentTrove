@@ -19,7 +19,7 @@
 - Malformed/missing JSON body or failed validation → `400 {error: string}`, matching every other route in this codebase.
 - Gated (real-database) tests use `describe.skipIf(!process.env.TEST_DATABASE_URL)`, exactly like `auth-db.test.ts`/`profile-db.test.ts`.
 - All new/modified source files use relative imports with an explicit `.ts` extension.
-- The `coverage` field in `add`/`remove` responses is built with `coverageOf(covered, total)` from `@pinloop/shared`, not a hand-built object.
+- The `coverage` field in `add`/`remove` responses is built with `coverageOf(covered, total)` from `@talenttrove/shared`, not a hand-built object.
 
 ---
 
@@ -1145,7 +1145,7 @@ git commit -m "web: implement GET/DELETE /api/tabs/[name]"
 - Modify: `packages/web/app/api/tabs/[name]/add/route.test.ts`
 
 **Interfaces:**
-- Consumes: `findTabByName`, `addPostingsToTab` (Task 2), `coverageOf` (`@pinloop/shared`).
+- Consumes: `findTabByName`, `addPostingsToTab` (Task 2), `coverageOf` (`@talenttrove/shared`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1249,7 +1249,7 @@ Expected: FAIL (or SKIPPED) — the current route still returns `501`.
 Replace `packages/web/app/api/tabs/[name]/add/route.ts` entirely:
 
 ```ts
-import { coverageOf } from '@pinloop/shared';
+import { coverageOf } from '@talenttrove/shared';
 import { addPostingsToTab, findTabByName } from '../../../../../lib/tabs-db.ts';
 import { requireSession } from '../../../../../lib/require-session.ts';
 
@@ -1305,7 +1305,7 @@ git commit -m "web: implement POST /api/tabs/[name]/add"
 - Modify: `packages/web/app/api/tabs/[name]/remove/route.test.ts`
 
 **Interfaces:**
-- Consumes: `findTabByName`, `removeFromTab` (Task 2), `coverageOf` (`@pinloop/shared`).
+- Consumes: `findTabByName`, `removeFromTab` (Task 2), `coverageOf` (`@talenttrove/shared`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1413,7 +1413,7 @@ Expected: FAIL (or SKIPPED) — the current route still returns `501`.
 Replace `packages/web/app/api/tabs/[name]/remove/route.ts` entirely:
 
 ```ts
-import { coverageOf } from '@pinloop/shared';
+import { coverageOf } from '@talenttrove/shared';
 import { findTabByName, removeFromTab } from '../../../../../lib/tabs-db.ts';
 import { requireSession } from '../../../../../lib/require-session.ts';
 
@@ -1617,7 +1617,7 @@ Expected: every tabs-related test that needs a database reports SKIPPED, not FAI
 Using the local Postgres set up per `packages/web/README.md`:
 
 ```bash
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test"
 npx vitest run
 ```
 
@@ -1634,7 +1634,7 @@ Expected: no errors.
 - [ ] **Step 4: Manually exercise the seed script and the UI**
 
 ```bash
-DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test" npm run db:seed -w packages/web
+DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test" npm run db:seed -w packages/web
 npm run dev -w packages/web
 ```
 

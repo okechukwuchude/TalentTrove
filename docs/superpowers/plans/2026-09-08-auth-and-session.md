@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Superseded post-merge, kept as historical record.** Everything below describes what Tasks 1–5 actually built and is an accurate record of that work (all reviewed, tested, merged). But the short-code hand-off mechanism Task 3/4 built the UI around (`POST /auth/handoff/trade`, opening `pinloop.ai/login` in a new tab) was tested by hand against the real backend after merge and doesn't work for a plain browser tab — the page closes with no code ever shown. It was replaced with a direct `POST /auth/send-code` / `POST /auth/verify-code` flow (no dependency on `pinloop.ai/login` at all), confirmed working against the real server. See the spec's Auth & session model section for the current, correct design; the code for the old mechanism (`tradeHandoffCode`, `/api/auth/handoff`) is still in the tree, tested and correct against what it does, just not reachable from any UI anymore.
+> **Superseded post-merge, kept as historical record.** Everything below describes what Tasks 1–5 actually built and is an accurate record of that work (all reviewed, tested, merged). But the short-code hand-off mechanism Task 3/4 built the UI around (`POST /auth/handoff/trade`, opening `talenttrove.ai/login` in a new tab) was tested by hand against the real backend after merge and doesn't work for a plain browser tab — the page closes with no code ever shown. It was replaced with a direct `POST /auth/send-code` / `POST /auth/verify-code` flow (no dependency on `talenttrove.ai/login` at all), confirmed working against the real server. See the spec's Auth & session model section for the current, correct design; the code for the old mechanism (`tradeHandoffCode`, `/api/auth/handoff`) is still in the tree, tested and correct against what it does, just not reachable from any UI anymore.
 
-**Goal:** Let a person sign in to `packages/web` through the real hosted sign-in flow, keep them signed in across page loads via a server-side session, and sign out — reaching parity with `pinloop login`/`pinloop logout`, using the short-code hand-off mechanism the backend actually supports (see the spec's corrected Auth & session model section).
+**Goal:** Let a person sign in to `packages/web` through the real hosted sign-in flow, keep them signed in across page loads via a server-side session, and sign out — reaching parity with `talenttrove login`/`talenttrove logout`, using the short-code hand-off mechanism the backend actually supports (see the spec's corrected Auth & session model section).
 
-**Architecture:** A pure, framework-agnostic `lib/pinloop-server.ts` ports the CLI's `callServer`/`callAsAccount` retry logic (dependency-injectable `fetch`, fully unit-testable). A pure `lib/session.ts` seals/unseals session data into a cookie value using `iron-session`'s low-level `sealData`/`unsealData` (not its Next-integrated `getIronSession`, which would force every test through Next's request-context machinery). Three route handlers under `app/api/auth/*` compose those two libraries using nothing but the Web-standard `Request`/`Response`, which keeps them directly callable — and testable — without a running Next server. The sign-in page opens the existing hosted sign-in flow in a new tab and trades the short code it shows for a pass.
+**Architecture:** A pure, framework-agnostic `lib/talenttrove-server.ts` ports the CLI's `callServer`/`callAsAccount` retry logic (dependency-injectable `fetch`, fully unit-testable). A pure `lib/session.ts` seals/unseals session data into a cookie value using `iron-session`'s low-level `sealData`/`unsealData` (not its Next-integrated `getIronSession`, which would force every test through Next's request-context machinery). Three route handlers under `app/api/auth/*` compose those two libraries using nothing but the Web-standard `Request`/`Response`, which keeps them directly callable — and testable — without a running Next server. The sign-in page opens the existing hosted sign-in flow in a new tab and trades the short code it shows for a pass.
 
 **Tech Stack:** `iron-session` (cookie sealing only, not its Next-specific helpers), Vitest, `@testing-library/react` + `jsdom` for the two client components.
 
@@ -19,21 +19,21 @@
 - No access token or refresh token is ever sent to the browser or readable by page JavaScript — the only thing that ever leaves the server is the sealed, httpOnly session cookie.
 - The session cookie's contents are sealed (encrypted and signed) via `iron-session`, never stored as raw/plain JSON. `SESSION_SECRET` must be at least 32 characters; the app throws loudly at startup if it's missing or too short rather than running insecurely.
 - On a `401`, renew the pass exactly once and retry the original call exactly once. If the retry also fails, surface that failure — never loop, never renew twice.
-- Don't assume any backend endpoint beyond what's already confirmed by `src/shared/sign-in.ts`'s constants and what `pinloop.ts` already calls: `POST /auth/handoff/trade` (trading a short code) and `POST /auth/refresh` (renewing a pass). In particular, there is no confirmed revoke/sign-out endpoint — sign-out only clears the local session cookie.
+- Don't assume any backend endpoint beyond what's already confirmed by `src/shared/sign-in.ts`'s constants and what `talenttrove.ts` already calls: `POST /auth/handoff/trade` (trading a short code) and `POST /auth/refresh` (renewing a pass). In particular, there is no confirmed revoke/sign-out endpoint — sign-out only clears the local session cookie.
 - `"type": "module"` and the monorepo's `strict`/`noUncheckedIndexedAccess` TypeScript conventions carry over (inherited from `packages/web/tsconfig.json`, written in the monorepo-restructuring plan).
 
 ---
 
-### Task 1: `lib/pinloop-server.ts` — the BFF proxy core
+### Task 1: `lib/talenttrove-server.ts` — the BFF proxy core
 
 **Files:**
-- Create: `packages/web/lib/pinloop-server.ts`
-- Create: `packages/web/lib/pinloop-server.test.ts`
+- Create: `packages/web/lib/talenttrove-server.ts`
+- Create: `packages/web/lib/talenttrove-server.test.ts`
 - Modify: `vitest.config.ts` (broaden the test-file include glob to cover `packages/web`)
 
 **Interfaces:**
 - Consumes: nothing from other tasks (first task).
-- Produces: `PinloopServerError` (class, has `.status: number`), `type Pass = { accessToken: string; refreshToken?: string }`, `tradeHandoffCode(code: string, doFetch?: typeof fetch): Promise<Pass & { email?: string }>`, `refreshPass(refreshTokenValue: string, doFetch?: typeof fetch): Promise<Pass>`, `callAsAccount(pass: Pass, path: string, options?: { method?: string; body?: unknown }, doFetch?: typeof fetch): Promise<{ json: unknown; status: number; renewedPass?: Pass }>`. Every later task that needs to call the Pinloop server imports from here.
+- Produces: `TalentTroveServerError` (class, has `.status: number`), `type Pass = { accessToken: string; refreshToken?: string }`, `tradeHandoffCode(code: string, doFetch?: typeof fetch): Promise<Pass & { email?: string }>`, `refreshPass(refreshTokenValue: string, doFetch?: typeof fetch): Promise<Pass>`, `callAsAccount(pass: Pass, path: string, options?: { method?: string; body?: unknown }, doFetch?: typeof fetch): Promise<{ json: unknown; status: number; renewedPass?: Pass }>`. Every later task that needs to call the TalentTrove server imports from here.
 
 - [ ] **Step 1: Broaden the Vitest include glob**
 
@@ -54,9 +54,9 @@ export default defineConfig({
 - [ ] **Step 2: Write the failing tests**
 
 ```typescript
-// packages/web/lib/pinloop-server.test.ts
+// packages/web/lib/talenttrove-server.test.ts
 import { describe, expect, it, vi } from 'vitest';
-import { PinloopServerError, callAsAccount, refreshPass, tradeHandoffCode } from './pinloop-server.ts';
+import { TalentTroveServerError, callAsAccount, refreshPass, tradeHandoffCode } from './talenttrove-server.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -81,7 +81,7 @@ describe('tradeHandoffCode', () => {
   it('throws when the server accepts the code but sends back no pass', async () => {
     const doFetch = vi.fn().mockResolvedValue(jsonResponse({}));
     await expect(tradeHandoffCode('123456', doFetch as unknown as typeof fetch)).rejects.toThrow(
-      PinloopServerError,
+      TalentTroveServerError,
     );
   });
 });
@@ -118,7 +118,7 @@ describe('callAsAccount', () => {
     const doFetch = vi.fn().mockResolvedValue(jsonResponse({ error: 'expired' }, 401));
     await expect(
       callAsAccount({ accessToken: 'a1' }, '/profile', {}, doFetch as unknown as typeof fetch),
-    ).rejects.toThrow(PinloopServerError);
+    ).rejects.toThrow(TalentTroveServerError);
     expect(doFetch).toHaveBeenCalledTimes(1);
   });
 
@@ -130,7 +130,7 @@ describe('callAsAccount', () => {
       .mockResolvedValueOnce(jsonResponse({ error: 'still no' }, 401));
     await expect(
       callAsAccount({ accessToken: 'a1', refreshToken: 'r1' }, '/profile', {}, doFetch as unknown as typeof fetch),
-    ).rejects.toThrow(PinloopServerError);
+    ).rejects.toThrow(TalentTroveServerError);
     expect(doFetch).toHaveBeenCalledTimes(3);
   });
 });
@@ -138,7 +138,7 @@ describe('callAsAccount', () => {
 describe('refreshPass', () => {
   it('throws when the server refuses the renewal', async () => {
     const doFetch = vi.fn().mockResolvedValue(jsonResponse({ error: 'bad refresh token' }, 401));
-    await expect(refreshPass('r1', doFetch as unknown as typeof fetch)).rejects.toThrow(PinloopServerError);
+    await expect(refreshPass('r1', doFetch as unknown as typeof fetch)).rejects.toThrow(TalentTroveServerError);
   });
 });
 ```
@@ -146,18 +146,18 @@ describe('refreshPass', () => {
 - [ ] **Step 3: Run the tests to verify they fail**
 
 ```bash
-npx vitest run packages/web/lib/pinloop-server.test.ts
+npx vitest run packages/web/lib/talenttrove-server.test.ts
 ```
 
-Expected: FAIL — `./pinloop-server.ts` does not exist yet.
+Expected: FAIL — `./talenttrove-server.ts` does not exist yet.
 
 - [ ] **Step 4: Write the implementation**
 
 ```typescript
-// packages/web/lib/pinloop-server.ts
-const SERVER_URL = process.env.PINLOOP_SERVER_URL ?? 'https://api.pinloop.ai';
+// packages/web/lib/talenttrove-server.ts
+const SERVER_URL = process.env.TALENTTROVE_SERVER_URL ?? 'https://api.talenttrove.ai';
 
-export class PinloopServerError extends Error {
+export class TalentTroveServerError extends Error {
   readonly status: number;
   constructor(message: string, status: number) {
     super(message);
@@ -181,7 +181,7 @@ async function rawCall(
   options: CallOptions,
   doFetch: typeof fetch,
 ): Promise<{ json: unknown; status: number }> {
-  const headers: Record<string, string> = { 'pinloop-web-version': '0.0.0' };
+  const headers: Record<string, string> = { 'talenttrove-web-version': '0.0.0' };
   if (options.token) headers['Authorization'] = `Bearer ${options.token}`;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
@@ -202,7 +202,7 @@ async function rawCall(
   if (response.status >= 400) {
     const asRecord = json as { error?: string; message?: string } | undefined;
     const message = asRecord?.error ?? asRecord?.message ?? text ?? `HTTP ${response.status}`;
-    throw new PinloopServerError(message, response.status);
+    throw new TalentTroveServerError(message, response.status);
   }
 
   return { json, status: response.status };
@@ -215,7 +215,7 @@ export async function tradeHandoffCode(
   const { json } = await rawCall('/auth/handoff/trade', { method: 'POST', body: { code } }, doFetch);
   const asRecord = json as { access_token?: string; refresh_token?: string; email?: string } | undefined;
   if (typeof asRecord?.access_token !== 'string' || asRecord.access_token === '') {
-    throw new PinloopServerError('that code was taken but carried no pass', 400);
+    throw new TalentTroveServerError('that code was taken but carried no pass', 400);
   }
   return {
     accessToken: asRecord.access_token,
@@ -232,7 +232,7 @@ export async function refreshPass(refreshTokenValue: string, doFetch: typeof fet
   );
   const asRecord = json as { access_token?: string; refresh_token?: string } | undefined;
   if (typeof asRecord?.access_token !== 'string' || asRecord.access_token === '') {
-    throw new PinloopServerError('the renewal did not return a pass', 401);
+    throw new TalentTroveServerError('the renewal did not return a pass', 401);
   }
   return {
     accessToken: asRecord.access_token,
@@ -249,7 +249,7 @@ export async function callAsAccount(
   try {
     return await rawCall(path, { ...options, token: pass.accessToken }, doFetch);
   } catch (error) {
-    const wasExpired = error instanceof PinloopServerError && error.status === 401;
+    const wasExpired = error instanceof TalentTroveServerError && error.status === 401;
     if (!wasExpired || !pass.refreshToken) throw error;
     const renewedPass = await refreshPass(pass.refreshToken, doFetch);
     const result = await rawCall(path, { ...options, token: renewedPass.accessToken }, doFetch);
@@ -261,7 +261,7 @@ export async function callAsAccount(
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-npx vitest run packages/web/lib/pinloop-server.test.ts
+npx vitest run packages/web/lib/talenttrove-server.test.ts
 ```
 
 Expected: 7 passed, 0 failed (2 `tradeHandoffCode` + 4 `callAsAccount` + 1 `refreshPass` — the original "6 passed" here was a miscount of Step 2's own test file).
@@ -374,7 +374,7 @@ Expected: FAIL — `./session.ts` does not exist yet.
 // packages/web/lib/session.ts
 import { sealData, unsealData } from 'iron-session';
 
-export const SESSION_COOKIE_NAME = 'pinloop_session';
+export const SESSION_COOKIE_NAME = 'talenttrove_session';
 
 export type SessionData = {
   accessToken?: string;
@@ -461,7 +461,7 @@ git commit -m "Add sealed session cookie helpers"
 - Create: `packages/web/app/api/auth/logout/route.test.ts`
 
 **Interfaces:**
-- Consumes: `PinloopServerError`, `tradeHandoffCode` (Task 1); `readSession`, `sealSession`, `sessionCookieHeader`, `clearedSessionCookieHeader`, `SESSION_COOKIE_NAME` (Task 2).
+- Consumes: `TalentTroveServerError`, `tradeHandoffCode` (Task 1); `readSession`, `sealSession`, `sessionCookieHeader`, `clearedSessionCookieHeader`, `SESSION_COOKIE_NAME` (Task 2).
 - Produces: three working endpoints — `POST /api/auth/handoff` (trades a code for a session), `GET /api/auth/session` (reports sign-in status), `POST /api/auth/logout` (clears the session) — that Task 4's UI calls.
 
 - [ ] **Step 1: Write the failing tests for `/api/auth/handoff`**
@@ -535,7 +535,7 @@ Expected: FAIL — the route file doesn't exist yet.
 
 ```typescript
 // packages/web/app/api/auth/handoff/route.ts
-import { PinloopServerError, tradeHandoffCode } from '../../../../lib/pinloop-server.ts';
+import { TalentTroveServerError, tradeHandoffCode } from '../../../../lib/talenttrove-server.ts';
 import { sealSession, sessionCookieHeader } from '../../../../lib/session.ts';
 
 export async function POST(request: Request): Promise<Response> {
@@ -556,8 +556,8 @@ export async function POST(request: Request): Promise<Response> {
     response.headers.append('Set-Cookie', sessionCookieHeader(sealed));
     return response;
   } catch (error) {
-    const message = error instanceof PinloopServerError ? error.message : 'could not sign in';
-    const status = error instanceof PinloopServerError ? error.status : 500;
+    const message = error instanceof TalentTroveServerError ? error.message : 'could not sign in';
+    const status = error instanceof TalentTroveServerError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
 }
@@ -646,7 +646,7 @@ export async function POST(): Promise<Response> {
 
 Run again — expected: 1 passed, 0 failed.
 
-(No confirmed server-side revoke endpoint exists per this plan's Global Constraints, so logout only clears the local cookie — the CLI's own `pinloop logout` does exactly the same thing to `credentials.json`, deleting the local file without calling the server.)
+(No confirmed server-side revoke endpoint exists per this plan's Global Constraints, so logout only clears the local cookie — the CLI's own `talenttrove logout` does exactly the same thing to `credentials.json`, deleting the local file without calling the server.)
 
 - [ ] **Step 5: Run the whole auth test suite together and commit**
 
@@ -670,7 +670,7 @@ git commit -m "Add auth route handlers: handoff, session, logout"
 - Create: `packages/web/app/sign-in/page.test.tsx`
 - Create: `packages/web/app/sign-out-button.tsx`
 - Create: `packages/web/app/sign-out-button.test.tsx`
-- Modify: `packages/web/app/page.tsx` (replaces Plan 1's placeholder that only proved `@pinloop/shared` was importable)
+- Modify: `packages/web/app/page.tsx` (replaces Plan 1's placeholder that only proved `@talenttrove/shared` was importable)
 - Modify: `packages/web/package.json` (add `jsdom`, `@testing-library/react`, `@testing-library/jest-dom` as devDependencies)
 
 **Interfaces:**
@@ -831,7 +831,7 @@ Expected: FAIL — the page doesn't exist yet.
 import { type FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const SIGN_IN_URL = 'https://pinloop.ai/login';
+const SIGN_IN_URL = 'https://talenttrove.ai/login';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -907,7 +907,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <h1>Pinloop</h1>
+      <h1>TalentTrove</h1>
       {signedIn ? (
         <p>
           Signed in{session.email ? ` as ${session.email}` : ''}. <SignOutButton />
@@ -946,13 +946,13 @@ git commit -m "Add the sign-in page and a session-aware home page"
 - Modify: `.gitignore` (ignore local env files)
 
 **Interfaces:**
-- Consumes: `PINLOOP_SERVER_URL` (read by `lib/pinloop-server.ts`) and `SESSION_SECRET` (read by `lib/session.ts`) — both already implemented, this task only documents and verifies them.
+- Consumes: `TALENTTROVE_SERVER_URL` (read by `lib/talenttrove-server.ts`) and `SESSION_SECRET` (read by `lib/session.ts`) — both already implemented, this task only documents and verifies them.
 - Produces: nothing new in code — this task is verification and documentation.
 
 - [ ] **Step 1: Write `packages/web/.env.example`**
 
 ```
-PINLOOP_SERVER_URL=https://api.pinloop.ai
+TALENTTROVE_SERVER_URL=https://api.talenttrove.ai
 SESSION_SECRET=replace-with-a-random-string-at-least-32-characters-long
 ```
 
@@ -966,14 +966,14 @@ Add to `.gitignore`:
 .env*.local
 ```
 
-- [ ] **Step 3: Manual verification (cannot be scripted — needs a real Pinloop account)**
+- [ ] **Step 3: Manual verification (cannot be scripted — needs a real TalentTrove account)**
 
 This step can't be automated: it requires a real account on the real hosted sign-in page, which is outside this repo and outside CI's reach. Run it by hand once:
 
 1. Copy `packages/web/.env.example` to `packages/web/.env.local`, and fill in a real random 32+ character `SESSION_SECRET` (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` works).
 2. `npm run dev -w packages/web`.
 3. Visit `http://localhost:3000` — expect "Sign in to get started."
-4. Click "Sign in". In the new tab, complete sign-in against the real `pinloop.ai/login` with any of Google, GitHub, or an emailed code.
+4. Click "Sign in". In the new tab, complete sign-in against the real `talenttrove.ai/login` with any of Google, GitHub, or an emailed code.
 5. Note the short code the callback page shows (no loopback listener is running, so it falls back to the code — this is expected, see the spec's Auth & session model section).
 6. Switch back to the original tab, paste the code, submit.
 7. Expect a redirect to `/` showing "Signed in as `<your email>`."
@@ -987,4 +987,4 @@ git add packages/web/.env.example .gitignore
 git commit -m "Document required environment variables for packages/web"
 ```
 
-At this point: a person can sign in through the real hosted flow, stay signed in across reloads via a sealed httpOnly cookie, and sign out — with `lib/pinloop-server.ts`'s `callAsAccount` ready for Plan 3 (profile/CV upload) to build its first real authenticated feature on.
+At this point: a person can sign in through the real hosted flow, stay signed in across reloads via a sealed httpOnly cookie, and sign out — with `lib/talenttrove-server.ts`'s `callAsAccount` ready for Plan 3 (profile/CV upload) to build its first real authenticated feature on.

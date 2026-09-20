@@ -1,15 +1,14 @@
 {
-  "name": "pinloop-monorepo",
+  "name": "talenttrove-monorepo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
     "packages/shared",
-    "packages/cli",
     "packages/web"
   ],
   "scripts": {
-    "build": "npm run build -w packages/shared && npm run build -w packages/cli && npm run build -w packages/web",
+    "build": "npm run build -w packages/shared && npm run build -w packages/web",
     "test": "vitest run"
   },
   "devDependencies": {

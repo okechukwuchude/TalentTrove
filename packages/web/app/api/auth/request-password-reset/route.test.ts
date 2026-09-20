@@ -57,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/auth/request-password-reset', () =>
 
   it('uses APP_ORIGIN for the reset link, ignoring the request Host, when it is set', async () => {
     const previous = process.env.APP_ORIGIN;
-    process.env.APP_ORIGIN = 'https://app.pinloop.example';
+    process.env.APP_ORIGIN = 'https://app.talenttrove.example';
     try {
       await authDb.createUser('b@example.com', 'hashed-password');
       const request = new Request('http://attacker-controlled.example/api/auth/request-password-reset', {
@@ -70,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/auth/request-password-reset', () =>
       expect(response.status).toBe(200);
       expect(sendPasswordResetEmail).toHaveBeenCalledTimes(1);
       const [, linkArg] = sendPasswordResetEmail.mock.calls[0]!;
-      expect(linkArg).toBe(`https://app.pinloop.example/reset-password?token=${linkArg.split('token=')[1]}`);
+      expect(linkArg).toBe(`https://app.talenttrove.example/reset-password?token=${linkArg.split('token=')[1]}`);
       expect(linkArg).not.toContain('attacker-controlled.example');
     } finally {
       if (previous === undefined) delete process.env.APP_ORIGIN;

@@ -1,7 +1,7 @@
 import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import { getDb } from './db.ts';
 import { applications, judgments, postings, tailoredResumes } from '../db/schema.ts';
-import { VERDICTS, rankOf } from '@pinloop/shared';
+import { VERDICTS, rankOf } from '@talenttrove/shared';
 import type { PostingJson } from './tabs-db.ts';
 
 export type ApplicationQueueRow = PostingJson & { cover_letter: string };

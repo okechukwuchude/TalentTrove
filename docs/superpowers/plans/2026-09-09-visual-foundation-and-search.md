@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give `packages/web` a real visual foundation (Tailwind CSS + shadcn/ui, retrofitted onto the existing sign-in/profile pages) and ship the `/search` page — word/filter search over postings, folding in `pinloop list` and `pinloop companies`, with cursor pagination — reaching that slice of parity with `pinloop search`/`pinloop list`/`pinloop companies`.
+**Goal:** Give `packages/web` a real visual foundation (Tailwind CSS + shadcn/ui, retrofitted onto the existing sign-in/profile pages) and ship the `/search` page — word/filter search over postings, folding in `talenttrove list` and `talenttrove companies`, with cursor pagination — reaching that slice of parity with `talenttrove search`/`talenttrove list`/`talenttrove companies`.
 
 **Architecture:** Task 1 adds Tailwind + a small, dependency-light set of shadcn-style primitives (`Button`, `Input`, `Textarea`, `Label`, `Card`, `Badge` — no Radix packages needed yet) and restyles every existing page without changing any accessible name, label, role, or button text the current test suite depends on. Tasks 2–5 build the search feature bottom-up: a shared `Posting` type and presentational `<PostingCard>`/`<PostingList>` (with an unused-for-now `renderActions` extension point, so the tabs and judge phases can add actions without touching these files again), a `search-queries.ts` TanStack Query hook file mirroring `profile-queries.ts`, two new BFF routes (`/api/search`, `/api/companies`) mirroring the profile routes' `requireSession`/`callAsAccount`/`withRenewedCookie` pattern, and finally the `/search` page itself (filter form, company typeahead, results list, "Load more" pagination).
 
@@ -63,7 +63,7 @@ Edit `packages/web/package.json`:
 
 ```json
 {
-  "name": "@pinloop/web",
+  "name": "@talenttrove/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -73,7 +73,7 @@ Edit `packages/web/package.json`:
     "start": "next start"
   },
   "dependencies": {
-    "@pinloop/shared": "*",
+    "@talenttrove/shared": "*",
     "@tanstack/react-query": "^5.59.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -471,7 +471,7 @@ export default function HomePage() {
     <main className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">Welcome to TalentTrove</h1>
       <p className="text-muted-foreground">
-        Search postings, keep tabs of the ones you like, and get Pinloop&rsquo;s judgment on how well
+        Search postings, keep tabs of the ones you like, and get TalentTrove&rsquo;s judgment on how well
         they fit your profile.
       </p>
     </main>
@@ -659,7 +659,7 @@ Replace `packages/web/app/profile/resume-card.tsx`:
 'use client';
 
 import { type ChangeEvent, useState } from 'react';
-import { FILE_CAP } from '@pinloop/shared';
+import { FILE_CAP } from '@talenttrove/shared';
 import { useUploadResume } from '../../lib/profile-queries.ts';
 import { Card, CardContent, CardHeader } from '../../components/ui/card.tsx';
 
@@ -778,7 +778,7 @@ export function TextDocumentCard({
           <>
             {usingDefault && (
               <p className="text-sm text-muted-foreground">
-                Using the default Pinloop ships. Edit below to store your own.
+                Using the default TalentTrove ships. Edit below to store your own.
               </p>
             )}
             <Textarea
@@ -836,7 +836,7 @@ Replace `packages/web/app/profile/whole-profile-usage.tsx`:
 ```tsx
 'use client';
 
-import { WHOLE_PROFILE_CAP } from '@pinloop/shared';
+import { WHOLE_PROFILE_CAP } from '@talenttrove/shared';
 import { useProfileDocuments } from '../../lib/profile-queries.ts';
 
 export function WholeProfileUsage() {
@@ -867,7 +867,7 @@ Replace `packages/web/app/profile/profile-editor.tsx`:
 ```tsx
 'use client';
 
-import { PER_DOCUMENT_CAP } from '@pinloop/shared';
+import { PER_DOCUMENT_CAP } from '@talenttrove/shared';
 import { ResumeCard } from './resume-card.tsx';
 import { TextDocumentCard } from './text-document-card.tsx';
 import { WholeProfileUsage } from './whole-profile-usage.tsx';
@@ -1401,7 +1401,7 @@ git commit -m "web: add useSearch/useCompanies query hooks"
 - Test: `packages/web/app/api/companies/route.test.ts`
 
 **Interfaces:**
-- Consumes: `callAsAccount`, `PinloopServerError` from `lib/pinloop-server.ts`; `requireSession`, `withRenewedCookie` from `lib/require-session.ts` (existing, from Plan 2).
+- Consumes: `callAsAccount`, `TalentTroveServerError` from `lib/talenttrove-server.ts`; `requireSession`, `withRenewedCookie` from `lib/require-session.ts` (existing, from Plan 2).
 - Produces: `POST /api/search` (body: the `SearchFilters`-shaped JSON `search-queries.ts` sends → `{ rows, cursor }`) and `GET /api/companies?q=` (→ `{ rows }`) — the two endpoints Task 3's hooks already call.
 
 - [ ] **Step 1: Write the failing tests for `/api/search`**
@@ -1475,7 +1475,7 @@ Expected: FAIL — `./route.ts` does not exist yet.
 Create `packages/web/app/api/search/route.ts`:
 
 ```ts
-import { PinloopServerError, callAsAccount } from '../../../lib/pinloop-server.ts';
+import { TalentTroveServerError, callAsAccount } from '../../../lib/talenttrove-server.ts';
 import { requireSession, withRenewedCookie } from '../../../lib/require-session.ts';
 
 export async function POST(request: Request): Promise<Response> {
@@ -1490,8 +1490,8 @@ export async function POST(request: Request): Promise<Response> {
     const cursor = asRecord?.cursor ?? asRecord?.next_cursor ?? null;
     return withRenewedCookie(auth.session, Response.json({ rows, cursor }), renewedPass);
   } catch (error) {
-    const message = error instanceof PinloopServerError ? error.message : 'could not search';
-    const status = error instanceof PinloopServerError ? error.status : 500;
+    const message = error instanceof TalentTroveServerError ? error.message : 'could not search';
+    const status = error instanceof TalentTroveServerError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
 }
@@ -1566,7 +1566,7 @@ Expected: FAIL — `./route.ts` does not exist yet.
 Create `packages/web/app/api/companies/route.ts`:
 
 ```ts
-import { PinloopServerError, callAsAccount } from '../../../lib/pinloop-server.ts';
+import { TalentTroveServerError, callAsAccount } from '../../../lib/talenttrove-server.ts';
 import { requireSession, withRenewedCookie } from '../../../lib/require-session.ts';
 
 export async function GET(request: Request): Promise<Response> {
@@ -1582,8 +1582,8 @@ export async function GET(request: Request): Promise<Response> {
     const rows = (json as { rows?: unknown } | undefined)?.rows;
     return withRenewedCookie(auth.session, Response.json({ rows: Array.isArray(rows) ? rows : [] }), renewedPass);
   } catch (error) {
-    const message = error instanceof PinloopServerError ? error.message : 'could not look up employers';
-    const status = error instanceof PinloopServerError ? error.status : 500;
+    const message = error instanceof TalentTroveServerError ? error.message : 'could not look up employers';
+    const status = error instanceof TalentTroveServerError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
 }

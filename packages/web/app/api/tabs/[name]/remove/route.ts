@@ -1,4 +1,4 @@
-import { coverageOf } from '@pinloop/shared';
+import { coverageOf } from '@talenttrove/shared';
 import { findTabByName, removeFromTab } from '../../../../../lib/tabs-db.ts';
 import { requireSession } from '../../../../../lib/require-session.ts';
 

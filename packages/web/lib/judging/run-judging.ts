@@ -4,7 +4,7 @@ import { closeDb, getDb } from '../db.ts';
 import { judgments, postings, profileDocuments, users } from '../../db/schema.ts';
 import { callJudgeModel } from './openrouter.ts';
 import { parseResumePdf } from '../pdf.ts';
-import { DEFAULT_JUDGE_PROMPT, JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES, VERDICTS, rankOf } from '@pinloop/shared';
+import { DEFAULT_JUDGE_PROMPT, JUDGE_PROMPT_NAME, QUICK_JUDGE_PROMPT_NAME, RESERVED_NAMES, VERDICTS, rankOf } from '@talenttrove/shared';
 import { listRoutines } from '../routines-db.ts';
 import { buildSearchConditions, type RoutineFilters } from '../postings-search.ts';
 import { findTabByName, createTab, addPostingsToTab } from '../tabs-db.ts';

@@ -2,8 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace `packages/web`'s dependence on Pinloop's hosted auth
-(`api.pinloop.ai`) with our own email+password auth backed by our own
+**Goal:** Replace `packages/web`'s dependence on TalentTrove's hosted auth
+(`api.talenttrove.ai`) with our own email+password auth backed by our own
 Postgres database, so every later piece (profile storage, tabs,
 postings/search, judge) has a signed-in user and a database to build on.
 
@@ -13,7 +13,7 @@ opaque random token sealed into the existing iron-session cookie; the
 database stores only the token's SHA-256 hash, never the raw value, so a
 database leak alone can't be used to impersonate a session. Passwords are
 hashed with Node's built-in `crypto.scrypt` (no new dependency for that
-part). Every other route that used to forward a Pinloop access token
+part). Every other route that used to forward a TalentTrove access token
 (`/api/profile`, `/api/tabs/*`, `/api/search`, `/api/companies`) is updated
 to the new session shape and stubbed to `501` — those routes get real
 implementations in their own later plans.
@@ -56,18 +56,18 @@ every later "gated" task needs one to run its integration tests. Set one up
 once, before Task 1:
 
 ```bash
-docker run --name pinloop-web-test-db -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=pinloop_web_test -p 5433:5432 -d postgres:16
+docker run --name talenttrove-web-test-db -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=talenttrove_web_test -p 5433:5432 -d postgres:16
 ```
 
 Then export, in every shell you run `npm test`/`npx vitest` from for the
 rest of this plan:
 
 ```bash
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test"
 ```
 
-(Windows PowerShell: `$env:TEST_DATABASE_URL = "postgres://postgres:postgres@localhost:5433/pinloop_web_test"`.)
+(Windows PowerShell: `$env:TEST_DATABASE_URL = "postgres://postgres:postgres@localhost:5433/talenttrove_web_test"`.)
 
 If Docker isn't available, any reachable scratch Postgres database works —
 just point `TEST_DATABASE_URL` at it. Every gated test in this plan is
@@ -523,7 +523,7 @@ git commit -m "web: add email/password validation helpers"
 
 ---
 
-### Task 5: Session cookie payload becomes a token, not Pinloop tokens
+### Task 5: Session cookie payload becomes a token, not TalentTrove tokens
 
 **Files:**
 - Modify: `packages/web/lib/session.ts`
@@ -615,7 +615,7 @@ blocks for cookie flags/`NODE_ENV`).
 
 ```bash
 git add packages/web/lib/session.ts packages/web/lib/session.test.ts
-git commit -m "web: session cookie carries an opaque token, not Pinloop tokens"
+git commit -m "web: session cookie carries an opaque token, not TalentTrove tokens"
 ```
 
 ---
@@ -836,7 +836,7 @@ git commit -m "web: add auth-db layer for users and sessions"
 
 ---
 
-### Task 7: `requireSession` reads our own sessions, not Pinloop's
+### Task 7: `requireSession` reads our own sessions, not TalentTrove's
 
 **Files:**
 - Modify: `packages/web/lib/require-session.ts` (full rewrite)
@@ -1187,7 +1187,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/auth/sign-up', () => {
     const response = await POST(jsonRequest({ email: 'a@example.com', password: 'password123' }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ email: 'a@example.com' });
-    expect(response.headers.get('set-cookie')).toContain('pinloop_session=');
+    expect(response.headers.get('set-cookie')).toContain('talenttrove_session=');
 
     const [row] = await sql`select email from users where email = 'a@example.com'`;
     expect(row?.email).toBe('a@example.com');
@@ -1342,7 +1342,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/auth/sign-in', () => {
     const response = await POST(jsonRequest({ email: 'a@example.com', password: 'password123' }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ email: 'a@example.com' });
-    expect(response.headers.get('set-cookie')).toContain('pinloop_session=');
+    expect(response.headers.get('set-cookie')).toContain('talenttrove_session=');
   });
 
   it('gives the same generic error for a nonexistent email as for a wrong password', async () => {
@@ -2047,13 +2047,13 @@ git commit -m "web: add POST /api/auth/reset-password"
 
 ---
 
-### Task 15: Remove the dead Pinloop-auth code
+### Task 15: Remove the dead TalentTrove-auth code
 
 **Files:**
 - Delete: `packages/web/app/api/auth/send-code/route.ts` and `.test.ts`
 - Delete: `packages/web/app/api/auth/verify-code/route.ts` and `.test.ts`
 - Delete: `packages/web/app/api/auth/handoff/route.ts` and `.test.ts`
-- Delete: `packages/web/lib/pinloop-server.ts` and `.test.ts`
+- Delete: `packages/web/lib/talenttrove-server.ts` and `.test.ts`
 
 Nothing in the codebase calls any of these after Tasks 9–14 replaced what
 they did (Task 16, next, removes the last remaining callers —
@@ -2064,7 +2064,7 @@ task can safely go first).
 
 ```bash
 cd packages/web
-grep -rl "pinloop-server" --include="*.ts" --include="*.tsx" . | grep -v "lib/pinloop-server"
+grep -rl "talenttrove-server" --include="*.ts" --include="*.tsx" . | grep -v "lib/talenttrove-server"
 ```
 
 Expected output: only the 9 route files that Task 16 handles next
@@ -2081,10 +2081,10 @@ investigate before deleting.
 git rm packages/web/app/api/auth/send-code/route.ts packages/web/app/api/auth/send-code/route.test.ts
 git rm packages/web/app/api/auth/verify-code/route.ts packages/web/app/api/auth/verify-code/route.test.ts
 git rm packages/web/app/api/auth/handoff/route.ts packages/web/app/api/auth/handoff/route.test.ts
-git rm packages/web/lib/pinloop-server.ts packages/web/lib/pinloop-server.test.ts
+git rm packages/web/lib/talenttrove-server.ts packages/web/lib/talenttrove-server.test.ts
 ```
 
-(`lib/pinloop-server.ts` still has the 9 callers from Task 16 at this point
+(`lib/talenttrove-server.ts` still has the 9 callers from Task 16 at this point
 — leave the `git rm` staged but don't run the full test suite until Task 16
 also removes those imports, otherwise `tsc --noEmit` will correctly
 complain about the missing module. Steps 3–4 below run *after* Task 16's
@@ -2094,12 +2094,12 @@ actual green run.)
 - [ ] **Step 3: Commit**
 
 ```bash
-git commit -m "web: remove dead Pinloop email-code auth (send-code/verify-code/handoff)"
+git commit -m "web: remove dead TalentTrove email-code auth (send-code/verify-code/handoff)"
 ```
 
 ---
 
-### Task 16: Stub every route that lost its Pinloop identity
+### Task 16: Stub every route that lost its TalentTrove identity
 
 **Files:**
 - Modify: `packages/web/app/api/profile/route.ts` and `.test.ts`
@@ -2119,7 +2119,7 @@ git commit -m "web: remove dead Pinloop email-code auth (send-code/verify-code/h
 Every one of these routes follows the exact same shape: check
 `requireSession`, and if signed in, return `501` with a plain message
 naming what still needs building. This task deletes each route's previous
-Pinloop-proxying body entirely — those come back, properly implemented,
+TalentTrove-proxying body entirely — those come back, properly implemented,
 in the profile/tabs/search sub-projects' own plans.
 
 - [ ] **Step 1: Write the failing tests**
@@ -2703,7 +2703,7 @@ cd packages/web && npx vitest run app/api/profile/route.test.ts app/api/profile/
 ```
 
 Expected: FAIL (or SKIPPED if `TEST_DATABASE_URL` is unset) — the current
-implementations still call the now-deleted `pinloop-server.ts`, so these
+implementations still call the now-deleted `talenttrove-server.ts`, so these
 files won't even compile at this point. That's the correct "fails for the
 right reason": the old implementation is incompatible with both the new
 `requireSession` shape from Task 7 and the module Task 15 removed.
@@ -2840,7 +2840,7 @@ each for the single-method routes, 4 each for the two-method routes, 6 for
 `profile/[name]`'s three methods), or every gated test SKIPS if
 `TEST_DATABASE_URL` is unset; the full `packages/web` suite is green;
 `tsc --noEmit` is clean. This is the checkpoint where Task 15's deletion of
-`pinloop-server.ts` is fully safe — nothing imports it anymore.
+`talenttrove-server.ts` is fully safe — nothing imports it anymore.
 
 - [ ] **Step 5: Commit**
 
@@ -3356,7 +3356,7 @@ git commit -m "web: add forgot-password and reset-password pages"
 Create `packages/web/README.md`:
 
 ```markdown
-# @pinloop/web
+# @talenttrove/web
 
 ## Local setup
 
@@ -3377,10 +3377,10 @@ the auth work), and the `app/api/auth/**` route tests need a real Postgres
 to run against, and are skipped automatically when one isn't configured.
 
 ```bash
-docker run --name pinloop-web-test-db -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=pinloop_web_test -p 5433:5432 -d postgres:16
+docker run --name talenttrove-web-test-db -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=talenttrove_web_test -p 5433:5432 -d postgres:16
 
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test"
 npm test
 ```
 

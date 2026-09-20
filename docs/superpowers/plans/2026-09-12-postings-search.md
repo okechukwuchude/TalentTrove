@@ -2046,7 +2046,7 @@ Expected: every postings/search-related test that needs a database reports SKIPP
 Using the local Postgres set up per `packages/web/README.md`:
 
 ```bash
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test"
 npx vitest run
 ```
 
@@ -2065,7 +2065,7 @@ Expected: no errors.
 Configure at least one adapter's environment variables (e.g. `GREENHOUSE_COMPANIES=stripe:Stripe` needs no key at all, the fastest way to test this end-to-end), then:
 
 ```bash
-DATABASE_URL="postgres://postgres:postgres@localhost:5433/pinloop_web_test" GREENHOUSE_COMPANIES="stripe:Stripe" npm run db:ingest -w packages/web
+DATABASE_URL="postgres://postgres:postgres@localhost:5433/talenttrove_web_test" GREENHOUSE_COMPANIES="stripe:Stripe" npm run db:ingest -w packages/web
 npm run dev -w packages/web
 ```
 

@@ -19,7 +19,7 @@ import {
   willNotOpenRefusal,
   wholeProfileRefusal,
   wrongKindRefusal,
-} from '@pinloop/shared';
+} from '@talenttrove/shared';
 import { parseResumePdf } from '../../../../lib/pdf.ts';
 import {
   deleteProfileDocument,

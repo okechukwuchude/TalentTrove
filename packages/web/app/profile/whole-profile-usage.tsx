@@ -1,6 +1,6 @@
 'use client';
 
-import { WHOLE_PROFILE_CAP } from '@pinloop/shared';
+import { WHOLE_PROFILE_CAP } from '@talenttrove/shared';
 import { useProfileDocuments } from '../../lib/profile-queries.ts';
 
 export function WholeProfileUsage() {

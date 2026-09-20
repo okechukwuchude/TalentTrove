@@ -26,15 +26,14 @@
  *
  * In text a person reads, the same two numbers are written with thousands
  * separators, because 149,446/149,519 can be read at a glance and 149446/149519
- * cannot. Writing them that way is the command line's job and lives in
- * src/cli/format.ts: the server hands back the two whole numbers and nothing
- * else, and only the program a person is looking at turns them into a sentence.
+ * cannot. Turning them into that sentence is the UI's job, done at render time
+ * from the raw numbers below; a JSON API response carries the two whole
+ * numbers and nothing else.
  *
- * This file sits under src/shared/ because both sides run it. The server works
- * the numbers out; the command line reads them off an answer and prints them.
- * Nothing here opens a connection, reads a credential or writes SQL, which is
- * what lets the published `pinloop` package carry it without carrying the
- * server.
+ * This file sits under packages/shared/ because both server-side route
+ * handlers and client-side components format coverage the same way, and
+ * neither should keep its own copy of the shape. Nothing here opens a
+ * connection, reads a credential or writes SQL.
  */
 
 /** How many of a set were covered, and how many there were in all. */

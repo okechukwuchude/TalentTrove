@@ -43,7 +43,7 @@ handlers, Vitest.
   `.ts` extension, matching every existing file in `packages/web`.
 - Gated (real-database) tests use `describe.skipIf(!process.env.TEST_DATABASE_URL)`.
 - A local test Postgres is available at
-  `postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test`.
+  `postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test`.
   Environment variables set with `export` do NOT persist between separate
   shell invocations in this harness — set `TEST_DATABASE_URL`/`DATABASE_URL`
   inline on the same command line every time you run a gated test.
@@ -137,7 +137,7 @@ it('creates profile_documents', async () => {
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run db/schema.test.ts
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run db/schema.test.ts
 ```
 
 Expected: FAIL (or SKIPPED without `TEST_DATABASE_URL`) — before Step 2's
@@ -475,7 +475,7 @@ isolation test).
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run lib/profile-db.test.ts
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run lib/profile-db.test.ts
 ```
 
 Expected: FAIL (or SKIPPED) — module not found.
@@ -617,7 +617,7 @@ bug if the driver's numeric-decoding behavior ever changes.
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run lib/profile-db.test.ts
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run lib/profile-db.test.ts
 ```
 
 Expected: PASS (9 tests), or SKIPPED without `TEST_DATABASE_URL`.
@@ -722,7 +722,7 @@ describe.skipIf(!testDatabaseUrl)('GET /api/profile', () => {
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run app/api/profile/route.test.ts
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run app/api/profile/route.test.ts
 ```
 
 Expected: FAIL (or SKIPPED) — the current route returns the `501` stub
@@ -758,7 +758,7 @@ export async function GET(request: Request): Promise<Response> {
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run app/api/profile/route.test.ts
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run app/api/profile/route.test.ts
 ```
 
 Expected: PASS (3 tests), or SKIPPED.
@@ -779,7 +779,7 @@ git commit -m "web: implement GET /api/profile"
 - Modify: `packages/web/app/api/profile/[name]/route.test.ts`
 
 **Interfaces:**
-- Consumes: `requireSession`, `getProfileDocument` (`lib/profile-db.ts`, Task 3), and from `@pinloop/shared`: `JUDGE_PROMPT_NAME`, `DEFAULT_JUDGE_PROMPT`, `QUICK_JUDGE_PROMPT_NAME`, `DEFAULT_QUICK_JUDGE_PROMPT`, `wrongKindRefusal`.
+- Consumes: `requireSession`, `getProfileDocument` (`lib/profile-db.ts`, Task 3), and from `@talenttrove/shared`: `JUDGE_PROMPT_NAME`, `DEFAULT_JUDGE_PROMPT`, `QUICK_JUDGE_PROMPT_NAME`, `DEFAULT_QUICK_JUDGE_PROMPT`, `wrongKindRefusal`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -900,7 +900,7 @@ describe.skipIf(!testDatabaseUrl)('GET /api/profile/[name]', () => {
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
 ```
 
 Expected: FAIL (or SKIPPED) — the current file only exports the `501`
@@ -921,7 +921,7 @@ import {
   JUDGE_PROMPT_NAME,
   QUICK_JUDGE_PROMPT_NAME,
   wrongKindRefusal,
-} from '@pinloop/shared';
+} from '@talenttrove/shared';
 import { getProfileDocument } from '../../../../lib/profile-db.ts';
 import { requireSession } from '../../../../lib/require-session.ts';
 
@@ -962,7 +962,7 @@ export async function DELETE(request: Request, _params: RouteParams): Promise<Re
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
 ```
 
 Expected: PASS (7 tests), or SKIPPED.
@@ -983,7 +983,7 @@ git commit -m "web: implement GET /api/profile/[name]"
 - Modify: `packages/web/app/api/profile/[name]/route.test.ts` (append)
 
 **Interfaces:**
-- Consumes: `requireSession`, `upsertTextDocument`/`upsertFileDocument`/`sumOtherTextBytes` (Task 3), `parseResumePdf` (Task 2), and from `@pinloop/shared`: `FILE_CAP`, `PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP`, `NAME_RULE`, `reservedKind`, `beginsLikeAPdf`, `nameRuleRefusal`, `wrongKindRefusal`, `holdsTextRefusal`, `overFileCapRefusal`, `notAPdfRefusal`, `willNotOpenRefusal`, `perDocumentRefusal`, `wholeProfileRefusal`.
+- Consumes: `requireSession`, `upsertTextDocument`/`upsertFileDocument`/`sumOtherTextBytes` (Task 3), `parseResumePdf` (Task 2), and from `@talenttrove/shared`: `FILE_CAP`, `PER_DOCUMENT_CAP`, `WHOLE_PROFILE_CAP`, `NAME_RULE`, `reservedKind`, `beginsLikeAPdf`, `nameRuleRefusal`, `wrongKindRefusal`, `holdsTextRefusal`, `overFileCapRefusal`, `notAPdfRefusal`, `willNotOpenRefusal`, `perDocumentRefusal`, `wholeProfileRefusal`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1235,7 +1235,7 @@ must stay identical, since they're testing the same underlying parser.
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
 ```
 
 Expected: FAIL (or SKIPPED) — `POST` still returns the `501` stub.
@@ -1267,7 +1267,7 @@ import {
   willNotOpenRefusal,
   wholeProfileRefusal,
   wrongKindRefusal,
-} from '@pinloop/shared';
+} from '@talenttrove/shared';
 import { parseResumePdf } from '../../../../lib/pdf.ts';
 import {
   getProfileDocument,
@@ -1353,7 +1353,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<R
 
 The `GET` function's own imports (`JUDGE_PROMPT_NAME`,
 `DEFAULT_JUDGE_PROMPT`, etc. from Task 5) now merge into this same import
-block — don't leave two separate `@pinloop/shared` import lines in the
+block — don't leave two separate `@talenttrove/shared` import lines in the
 file; combine them into the one shown above, which already includes
 everything `GET` needs too.
 
@@ -1361,7 +1361,7 @@ everything `GET` needs too.
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
 ```
 
 Expected: PASS (18 tests: 7 from Task 5's `GET` block + 11 here), or
@@ -1473,7 +1473,7 @@ describe.skipIf(!testDatabaseUrl)('DELETE /api/profile/[name]', () => {
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
 ```
 
 Expected: FAIL (or SKIPPED) — `DELETE` still returns the `501` stub.
@@ -1500,7 +1500,7 @@ export async function DELETE(request: Request, { params }: RouteParams): Promise
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run "app/api/profile/[name]/route.test.ts"
 ```
 
 Expected: PASS (22 tests: 18 from Tasks 5+6 + 4 here), or SKIPPED.
@@ -1509,7 +1509,7 @@ Expected: PASS (22 tests: 18 from Tasks 5+6 + 4 here), or SKIPPED.
 
 ```bash
 cd packages/web
-TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/pinloop_web_test" npx vitest run
+TEST_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/talenttrove_web_test" npx vitest run
 npx tsc --noEmit
 ```
 

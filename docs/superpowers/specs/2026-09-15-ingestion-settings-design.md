@@ -93,7 +93,7 @@ export function decryptSecret(stored: string): string;
 ```
 
 AES-256-GCM, key derived from `SESSION_SECRET` via `scryptSync` (a fixed
-salt specific to this purpose, e.g. `'pinloop-settings-v1'`, is fine here —
+salt specific to this purpose, e.g. `'talenttrove-settings-v1'`, is fine here —
 `SESSION_SECRET` itself is the actual secret input, unique per deployment
 and already required to be high-entropy; the salt only needs to prevent
 the derived key from colliding with some other `scryptSync(SESSION_SECRET,

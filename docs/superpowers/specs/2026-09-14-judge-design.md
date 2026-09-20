@@ -18,7 +18,7 @@ profile documents with an LLM and recording a verdict.
 schedule, the same way postings ingestion already does
 (`POST /api/cron/ingest-postings`, `2026-09-12-postings-search-design.md`)
 — no button, no confirm-before-spending dialog. The old CLI's
-confirm-then-spend gate existed because Pinloop's hosted server enforced a
+confirm-then-spend gate existed because TalentTrove's hosted server enforced a
 shared monthly judging quota across many accounts and wanted a
 "you're about to spend real money" moment before a coding agent burned
 through it unattended; neither the shared quota nor the multi-tenant
@@ -49,7 +49,7 @@ specified in `packages/shared`, not invented here:
   'strong'] as const`, worst to best, plus `rankOf`/`dropReason` helpers
   already usable once real verdicts exist.
 
-Both packages are already published as part of `@pinloop/shared` and
+Both packages are already published as part of `@talenttrove/shared` and
 imported unchanged.
 
 ## Data model

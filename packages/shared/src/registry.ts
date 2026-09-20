@@ -3,7 +3,7 @@
  * carries.
  *
  * A profile is a set of named documents. Most names are the user's own
- * invention and mean nothing to Pinloop beyond "the user keeps this here". A
+ * invention and mean nothing to TalentTrove beyond "the user keeps this here". A
  * short list of names is different: the product itself decides what those names
  * are for, so `constraints` is always the document judge reads for work
  * authorization and `resume` is always the PDF the fill engine attaches. That
@@ -68,7 +68,7 @@ export const JUDGE_PROMPT_NAME = 'judge-prompt';
  * copy as well and the change shows up in the diff.
  */
 export const DEFAULT_JUDGE_PROMPT =
-  'You are judging one job posting against one person, for a product called Pinloop.\n' +
+  'You are judging one job posting against one person, for a product called TalentTrove.\n' +
   '\n' +
   'You are given the complete stored posting, then every document this person keeps in ' +
   'their profile, each labelled with the name it is stored under. Four of those names ' +
@@ -127,7 +127,7 @@ export const QUICK_JUDGE_PROMPT_NAME = 'quick-judge-prompt';
  * of run.
  */
 export const DEFAULT_QUICK_JUDGE_PROMPT =
-  'You are screening job postings against one person, for a product called Pinloop.\n' +
+  'You are screening job postings against one person, for a product called TalentTrove.\n' +
   '\n' +
   'You get up to a hundred postings in this one message, and for each posting you see only ' +
   'the plain facts stored about it: the job title, the employer, the locations and the ' +
@@ -228,8 +228,7 @@ export function beginsLikeAPdf(bytes: Buffer): boolean {
 const THE_FILE_NAME = 'resume';
 
 /** How a person is told to store the resume, repeated by several refusals. */
-const HOW_TO_STORE_A_FILE =
-  `"pinloop profile put ${THE_FILE_NAME} --file <path to the PDF>"`;
+const HOW_TO_STORE_A_FILE = `the resume upload field on the profile page`;
 
 /** What a person is told when the name they chose is not a legal name. */
 export function nameRuleRefusal(name: string): string {
@@ -243,8 +242,8 @@ export function nameRuleRefusal(name: string): string {
 export function wrongKindRefusal(name: string): string {
   if (name === 'resume') {
     return (
-      'the resume holds a PDF file, not text. Store it with ' +
-      '"pinloop profile put resume --file <path to the PDF>".'
+      'the resume holds a PDF file, not text. Upload it from ' +
+      `${HOW_TO_STORE_A_FILE}.`
     );
   }
   return `the document named ${name} holds a file, not text.`;
@@ -254,7 +253,7 @@ export function wrongKindRefusal(name: string): string {
 export function holdsTextRefusal(name: string): string {
   return (
     `the document named ${name} holds text, not a file. ` +
-    `The ${THE_FILE_NAME} is the only document that takes a file: store it with ` +
+    `The ${THE_FILE_NAME} is the only document that takes a file: upload it from ` +
     `${HOW_TO_STORE_A_FILE}.`
   );
 }
@@ -277,7 +276,7 @@ export function notAPdfRefusal(): string {
   return (
     'that file does not begin like a PDF: every PDF starts with the characters ' +
     `%PDF-, and this one does not. The ${THE_FILE_NAME} holds a PDF file, not text, ` +
-    `so store the PDF itself with ${HOW_TO_STORE_A_FILE}.`
+    `so upload the PDF itself from ${HOW_TO_STORE_A_FILE}.`
   );
 }
 

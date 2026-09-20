@@ -5,7 +5,7 @@ Date: 2026-09-09
 
 ## Why
 
-`packages/web` currently talks to Pinloop's hosted server (`api.pinloop.ai`)
+`packages/web` currently talks to TalentTrove's hosted server (`api.talenttrove.ai`)
 for everything: sign-in, profile storage, tabs, job-postings search, and
 judge. Searching against that server started coming back empty even for
 maximally broad, unconditional queries — not a bug in this repo's request
@@ -22,14 +22,14 @@ own spec/plan cycle later.
 
 This supersedes the "Auth & session model" section of
 `2026-09-08-web-app-migration-design.md`, which assumed the web app would
-keep calling Pinloop's hosted `/auth/send-code`/`/auth/verify-code`. That
+keep calling TalentTrove's hosted `/auth/send-code`/`/auth/verify-code`. That
 assumption no longer holds for the auth piece; the rest of that spec (page
 map, confirm-spend pattern, etc.) is unaffected until its corresponding
 piece is replaced.
 
 **Explicitly not in scope for this piece:** profile storage, tabs, job
-postings/search, or judge. Replacing auth removes the Pinloop `accessToken`
-those routes currently forward to `api.pinloop.ai` — so `/api/profile`,
+postings/search, or judge. Replacing auth removes the TalentTrove `accessToken`
+those routes currently forward to `api.talenttrove.ai` — so `/api/profile`,
 `/api/tabs`, `/api/search`, and `/api/companies` will stop working the
 moment this ships, until their own sub-projects replace them. That's an
 accepted, temporary consequence of this being a personal/single-user
@@ -107,9 +107,9 @@ reset link.
 ## Endpoints
 
 Replacing today's `/api/auth/send-code`, `/api/auth/verify-code`, and
-`/api/auth/handoff` (all Pinloop-specific and no longer applicable — the
+`/api/auth/handoff` (all TalentTrove-specific and no longer applicable — the
 handoff route is dead code today anyway, kept only for interop with
-Pinloop's own hosted sign-in page, which nothing in this app's UI calls):
+TalentTrove's own hosted sign-in page, which nothing in this app's UI calls):
 
 | Route | Body | Behavior |
 |---|---|---|

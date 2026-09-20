@@ -4,7 +4,7 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:
 // colliding with some other scryptSync(SESSION_SECRET, ...) use elsewhere in
 // this app. SESSION_SECRET itself, unique per deployment and already
 // required to be high-entropy, is the actual secret input.
-const SALT = 'pinloop-settings-v1';
+const SALT = 'talenttrove-settings-v1';
 
 let cache: { secret: string; key: Buffer } | undefined;
 

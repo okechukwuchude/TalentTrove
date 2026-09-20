@@ -1,11 +1,11 @@
-# Replacing the Pinloop CLI with a web app
+# Replacing the TalentTrove CLI with a web app
 
 Status: approved design, pending spec review
 Date: 2026-09-08
 
 ## Why
 
-Pinloop is currently used through `pinloop`, a command line published to npm and
+TalentTrove is currently used through `talenttrove`, a command line published to npm and
 meant to be driven by a coding agent on a person's behalf. This project
 replaces that interface with a web app that a person uses directly in a
 browser, starting from — but not limited to — the flow that prompted this:
@@ -13,7 +13,7 @@ uploading and managing a CV/profile. The CLI (`packages/cli` after this
 project's restructuring) is retired once the web app reaches parity with it.
 
 The web app is a new client against the existing hosted backend
-(`api.pinloop.ai`). This project does not redesign the backend; it calls the
+(`api.talenttrove.ai`). This project does not redesign the backend; it calls the
 same endpoints the CLI calls today. Any backend gap discovered while building
 a given page is called out where it comes up, not solved here.
 
@@ -22,7 +22,7 @@ a given page is called out where it comes up, not solved here.
 This repo becomes an npm-workspaces monorepo:
 
 ```
-pinloop-cli/
+talenttrove-cli/
 ├── package.json          # workspaces root, private
 └── packages/
     ├── shared/            # today's src/shared/, unchanged in spirit: pure,
@@ -54,7 +54,7 @@ Almost all new work happens in `packages/web`.
 
 **Corrected a second time, against a real, working sign-in.** The
 short-code hand-off described below (v1) was implemented, then tested by
-hand against the real hosted sign-in page, and failed: `pinloop.ai/login`
+hand against the real hosted sign-in page, and failed: `talenttrove.ai/login`
 closes itself immediately after the emailed code is entered, with or without
 a `port`/`secret` query string, and never displays the fallback short code
 the CLI relies on. That mechanism appears to only work for the CLI's
@@ -64,7 +64,7 @@ loopback-listener scenario, not a plain browser tab.
 of the login service's own endpoints directly — `POST /auth/send-code`
 (`SEND_CODE_PATH`) and `POST /auth/verify-code` (`VERIFY_CODE_PATH`), both
 already named in `src/shared/sign-in.ts` — from its own BFF, bypassing
-`pinloop.ai/login` entirely:
+`talenttrove.ai/login` entirely:
 
 - **Sign-in**: `/sign-in` is a two-step form. Step 1 takes an email address
   and calls `POST /api/auth/send-code`, which forwards to the server's
@@ -72,10 +72,10 @@ already named in `src/shared/sign-in.ts` — from its own BFF, bypassing
   `POST /api/auth/verify-code`, forwarding to `VERIFY_CODE_PATH` with
   `{ email, code }`; on success the server returns a pass exactly like
   `HANDOFF_TRADE_PATH` does, and the BFF seals it into the session cookie the
-  same way. No new tab, no code relay, no dependency on `pinloop.ai/login` at
+  same way. No new tab, no code relay, no dependency on `talenttrove.ai/login` at
   all.
 - **Google/GitHub sign-in is dropped for now.** Those genuinely do need
-  `pinloop.ai/auth/callback`'s OAuth redirect (allowlisted to that one
+  `talenttrove.ai/auth/callback`'s OAuth redirect (allowlisted to that one
   address), which is a separate, still-unsolved problem from the short-code
   one — revisit only if OAuth sign-in turns out to matter enough to justify
   coordinating with whoever owns that page.
@@ -83,7 +83,7 @@ already named in `src/shared/sign-in.ts` — from its own BFF, bypassing
   calls `send-code`/`verify-code` itself (only the login page does), so
   there was no reference implementation to copy. `{ email }` and
   `{ email, code }` were the first guess, tried against the real server, and
-  worked. If the server ever changes these field names, `packages/web/lib/pinloop-server.ts`'s
+  worked. If the server ever changes these field names, `packages/web/lib/talenttrove-server.ts`'s
   `requestEmailCode`/`verifyEmailCode` are the one place to update.
 - **The short-code mechanism (`HANDOFF_PATH`/`HANDOFF_TRADE_PATH`) is still
   implemented** (`/api/auth/handoff`, `tradeHandoffCode`) but has no working
@@ -92,7 +92,7 @@ already named in `src/shared/sign-in.ts` — from its own BFF, bypassing
   because anything currently exercises it end-to-end.
 - **Fast-follow, not part of this project, unchanged from before**: a
   `window.opener.postMessage`-based flow would let OAuth sign-in work too,
-  but needs edits to `pinloop.ai/auth/callback` itself, outside this repo.
+  but needs edits to `talenttrove.ai/auth/callback` itself, outside this repo.
 - **Session storage**: on a successful code verification, the BFF route
   handler (`/api/auth/verify-code`) that received the `access_token`/`refresh_token`
   pair sets **one httpOnly, Secure, SameSite=Lax session cookie** (`Secure`
@@ -105,7 +105,7 @@ already named in `src/shared/sign-in.ts` — from its own BFF, bypassing
 - **Every other route handler** (`/api/profile/*`, `/api/search`,
   `/api/judge`, `/api/routines/*`, `/api/schedules/*`, `/api/watches/*`,
   `/api/billing`) reads the session cookie server-side, attaches
-  `Authorization: Bearer <access_token>` when calling `api.pinloop.ai`, and on
+  `Authorization: Bearer <access_token>` when calling `api.talenttrove.ai`, and on
   a `401` performs the same one-shot renewal the CLI's `callAsAccount` does
   today: trade the refresh token once, retry the original call once. If that
   retry also fails, the route handler responds `401` and the frontend redirects
@@ -114,7 +114,7 @@ already named in `src/shared/sign-in.ts` — from its own BFF, bypassing
 - **Sign-out** clears the session cookie and calls the server's revoke
   endpoint if the backend has one.
 - There is exactly one session per browser (its cookie jar) — no
-  `PINLOOP_CONFIG_DIR` equivalent, no multi-account file switching.
+  `TALENTTROVE_CONFIG_DIR` equivalent, no multi-account file switching.
 
 **Open question (backend verification, not a design gap):** whether
 `/auth/refresh`'s refresh token rotates (single-use) or is reusable. If it
@@ -126,21 +126,21 @@ this only affects one function's internals.
 
 ## API/data layer
 
-- **One proxy helper**, `callPinloopServer(path, options)`, used by every
-  route handler under `app/api/*`. It is a direct port of `pinloop.ts`'s
+- **One proxy helper**, `callTalentTroveServer(path, options)`, used by every
+  route handler under `app/api/*`. It is a direct port of `talenttrove.ts`'s
   `callServer`/`callAsAccount`: attach the bearer token, attach a
-  `pinloop-web-version` request header (the web equivalent of
-  `pinloop-cli-version`), read back `pinloop-latest-version` /
-  `pinloop-minimum-version` / `pinloop-unread` response headers, perform the
+  `talenttrove-web-version` request header (the web equivalent of
+  `talenttrove-cli-version`), read back `talenttrove-latest-version` /
+  `talenttrove-minimum-version` / `talenttrove-unread` response headers, perform the
   one-shot refresh-and-retry on 401, and surface the server's own error text
   on failure rather than inventing a new message. No route handler
   reimplements auth or retry logic itself.
 - **Streaming passthrough for judge.** `app/api/judge/route.ts` calls
-  `POST /judge` with the same progress-stream `Accept` header `pinloop.ts`
+  `POST /judge` with the same progress-stream `Accept` header `talenttrove.ts`
   sends, and instead of buffering the response, returns the upstream
   `ReadableStream` directly to the browser (Next.js route handlers support
   returning a stream). The browser reads and splits it into lines using the
-  same approach as `readLines` in `pinloop.ts`, updating UI state per line as
+  same approach as `readLines` in `talenttrove.ts`, updating UI state per line as
   it arrives, and treating the final line as the answer — same contract, same
   ordering guarantee (no line is held back to find out it was the last one).
   Only judge's *second* (confirmed) call is actually streamed — its dry-run
@@ -161,16 +161,16 @@ this only affects one function's internals.
 
 | Page | Replaces | Backing endpoint(s) |
 |---|---|---|
-| `/sign-in` | `pinloop login` | `POST /auth/send-code`, `POST /auth/verify-code`, `POST /auth/refresh` |
-| `/profile` | `pinloop profile *` | `GET/POST/DELETE /profile/{name}` |
-| `/search` | `pinloop search`, `pinloop list`, `pinloop companies` | `POST /search`, `GET /companies` |
-| `/tabs` | `pinloop tab *` | tab CRUD endpoints |
-| judge dialog (launched from search/tab results) | `pinloop judge` | `POST /judge` (confirm-gate + streamed progress) |
-| `/routines` | `pinloop routine *` | routine CRUD + run (confirm-gate) |
-| `/schedules`, `/watches` | `pinloop schedule *`, `pinloop watch *` | CRUD (confirm-gate on `put`) |
-| `/billing` | `pinloop billing` | billing status endpoint |
-| account menu / inbox | unread-message notice, `pinloop message` | `pinloop-unread` header + message endpoint |
-| `/` (dashboard) | `pinloop` typed bare | summary: allowance left, profile completeness, recent judgments |
+| `/sign-in` | `talenttrove login` | `POST /auth/send-code`, `POST /auth/verify-code`, `POST /auth/refresh` |
+| `/profile` | `talenttrove profile *` | `GET/POST/DELETE /profile/{name}` |
+| `/search` | `talenttrove search`, `talenttrove list`, `talenttrove companies` | `POST /search`, `GET /companies` |
+| `/tabs` | `talenttrove tab *` | tab CRUD endpoints |
+| judge dialog (launched from search/tab results) | `talenttrove judge` | `POST /judge` (confirm-gate + streamed progress) |
+| `/routines` | `talenttrove routine *` | routine CRUD + run (confirm-gate) |
+| `/schedules`, `/watches` | `talenttrove schedule *`, `talenttrove watch *` | CRUD (confirm-gate on `put`) |
+| `/billing` | `talenttrove billing` | billing status endpoint |
+| account menu / inbox | unread-message notice, `talenttrove message` | `talenttrove-unread` header + message endpoint |
+| `/` (dashboard) | `talenttrove` typed bare | summary: allowance left, profile completeness, recent judgments |
 
 ### Profile & CV upload, in detail
 
@@ -224,7 +224,7 @@ verdict text) read well on screen.
   `GET /companies`): typing queries employer names, selecting one adds its id
   to the `company` param. This is the only surface `/companies` needs — there
   is no separate "browse companies" view.
-- No explicit "list mode." `pinloop list`'s behavior (date-ordered, no word
+- No explicit "list mode." `talenttrove list`'s behavior (date-ordered, no word
   ranking) is just what `/search` already does when the words field is
   empty, and `list`'s narrower option set (no `--company`/`--match`/
   `--order`/`--top`/`--in`/`--semantic`) is simply not shown rather than
@@ -307,16 +307,16 @@ verdict text) read well on screen.
     straight through as the response body instead of buffering it.
 - **New proxy primitive**: `callAsAccount` always calls `response.text()`, so
   it cannot serve the streamed call. This phase adds `streamAsAccount` to
-  `packages/web/lib/pinloop-server.ts` — same one-shot 401-refresh-and-retry
+  `packages/web/lib/talenttrove-server.ts` — same one-shot 401-refresh-and-retry
   as `callAsAccount` (a `Response`'s status/headers are readable before its
   body is consumed, so a 401 can be detected and retried without touching
   the stream), but on success it returns the raw `Response` rather than
   parsed JSON. The route handler re-seals the session cookie on the *outer*
   response before streaming starts if a renewal happened during the retry.
 - **Client-side consumption**: a `useJudgeStream` hook does `fetch` plus
-  manual `ReadableStream` reading (mirroring `readLines` in `pinloop.ts`),
+  manual `ReadableStream` reading (mirroring `readLines` in `talenttrove.ts`),
   splitting on newlines and parsing each line as a `ProgressEvent` from
-  `@pinloop/shared`. Events (`call-started`/`thinking`/`verdict`/
+  `@talenttrove/shared`. Events (`call-started`/`thinking`/`verdict`/
   `call-failed`/`error`) are pushed into local component state as they
   arrive and render as a live per-posting progress list; the final line is
   the real answer, resolved as the hook's result — same ordering guarantee
@@ -337,7 +337,7 @@ that exact two-call contract and gives it one shared UI:
 - **`<ConfirmSpendDialog>`** is the only place in the app that confirms spend,
   used by all five actions. It renders the server's dry-run response
   (`confirm_token`, `confirm_judgments`, `confirm_left`, `confirm_model`,
-  etc. — the same fields `reportConfirmation` in `pinloop.ts` already parses)
+  etc. — the same fields `reportConfirmation` in `talenttrove.ts` already parses)
   as:
   1. what would actually happen and with which model,
   2. what it would cost and what would be left this month (as text plus a
@@ -370,7 +370,7 @@ that exact two-call contract and gives it one shared UI:
   installed CLI.
 - **Unread messages**: the CLI's forced "read this to the person now" notice
   (aimed at a coding agent relaying on someone's behalf) becomes a small
-  badge on an account/inbox icon showing the `pinloop-unread` count, opening a
+  badge on an account/inbox icon showing the `talenttrove-unread` count, opening a
   plain messages view on click. No forced interruption — a person using the
   UI directly doesn't need a relay instruction.
 - **Errors**: the proxy throws a typed error carrying the server's own
@@ -409,8 +409,8 @@ that exact two-call contract and gives it one shared UI:
 1. Build `packages/web` to full functional parity with `packages/cli`,
    sharing `packages/shared` throughout. `packages/cli` keeps publishing to
    npm unchanged the whole time — no existing user is broken mid-project.
-2. Ship the web app; update `README.md` and pinloop.ai to point people at it
-   as the primary way to use Pinloop.
+2. Ship the web app; update `README.md` and talenttrove.ai to point people at it
+   as the primary way to use TalentTrove.
 3. After a deprecation window, deprecate the npm package (`npm deprecate`)
    and remove `packages/cli` (and any CLI-only code in `packages/shared`, if
    any turns out to exist).
@@ -425,5 +425,5 @@ before this step is executed; it does not block starting steps 1–2.
 - Broader branding for `packages/web` beyond the Tailwind/shadcn foundation
   decided in "Visual foundation, decided for the search/tabs/judge phase"
   above (a full brand pass is still a follow-up concern, not this spec).
-- Marketing/landing-page content on pinloop.ai outside of pointing existing
+- Marketing/landing-page content on talenttrove.ai outside of pointing existing
   copy at the new web app.

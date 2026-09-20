@@ -48,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)('POST /api/auth/sign-in', () => {
     const response = await POST(jsonRequest({ email: 'a@example.com', password: 'password123' }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ email: 'a@example.com' });
-    expect(response.headers.get('set-cookie')).toContain('pinloop_session=');
+    expect(response.headers.get('set-cookie')).toContain('talenttrove_session=');
   });
 
   it('gives the same generic error for a nonexistent email as for a wrong password', async () => {

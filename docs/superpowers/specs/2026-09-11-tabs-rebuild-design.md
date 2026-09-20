@@ -5,10 +5,10 @@ Date: 2026-09-11
 
 ## Why
 
-`2026-09-09-auth-database-foundation-design.md` replaced Pinloop's hosted
+`2026-09-09-auth-database-foundation-design.md` replaced TalentTrove's hosted
 auth with our own Postgres-backed sessions, and as an accepted consequence
 stubbed `/api/tabs`, `/api/search`, and `/api/companies` to `501` — those
-routes used to forward a Pinloop `accessToken` to `api.pinloop.ai`, which no
+routes used to forward a TalentTrove `accessToken` to `api.talenttrove.ai`, which no
 longer exists. That auth spec named tabs, job postings/search, and judge as
 three follow-on pieces, each needing its own spec/plan.
 
@@ -82,7 +82,7 @@ Leaving it unconstrained means a posting can be deleted freely, and a tab
 item whose `posting_id` no longer resolves becomes exactly the signal that
 produces the existing frontend's "no longer present" banner
 (`app/tabs/[name]/tab-detail-view.tsx`) — this is not a workaround, it's the
-mechanism the frontend already expects, ported from the old Pinloop-backed
+mechanism the frontend already expects, ported from the old TalentTrove-backed
 design as-is.
 
 Tabs are looked up by `(user_id, name)`, matching the `/api/tabs/[name]`
@@ -170,7 +170,7 @@ already use.
   inserts rows without throwing.
 - No frontend test changes — `tab-queries.test.tsx`, `tabs-view.test.tsx`,
   and `tab-detail-view.test.tsx` already assert the exact JSON shapes this
-  spec produces (they were written against the old Pinloop-proxy version of
+  spec produces (they were written against the old TalentTrove-proxy version of
   these routes, which used the same wire contract).
 
 ## Migration/rollout note
