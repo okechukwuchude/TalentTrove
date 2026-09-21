@@ -6,10 +6,18 @@ import { ashbyAdapter } from './ashby.ts';
 import { greenhouseAdapter } from './greenhouse.ts';
 import { jsearchAdapter } from './jsearch.ts';
 import { leverAdapter } from './lever.ts';
+import { linkedinAdapter } from './linkedin.ts';
 import type { IngestionAdapter, RawPosting } from './types.ts';
 import { pathToFileURL } from 'node:url';
 
-const DEFAULT_ADAPTERS: IngestionAdapter[] = [jsearchAdapter, adzunaAdapter, greenhouseAdapter, leverAdapter, ashbyAdapter];
+const DEFAULT_ADAPTERS: IngestionAdapter[] = [
+  jsearchAdapter,
+  adzunaAdapter,
+  linkedinAdapter,
+  greenhouseAdapter,
+  leverAdapter,
+  ashbyAdapter,
+];
 
 export type IngestionSummary = { source: string; fetched: number; upserted: number; failed: string | null };
 

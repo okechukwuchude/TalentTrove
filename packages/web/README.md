@@ -20,14 +20,14 @@ with none of them set, it just won't have any real postings to search.
 
 ## Configuring postings ingestion
 
-`postings` is populated by five independent source adapters
+`postings` is populated by six independent source adapters
 (`lib/ingestion/*.ts`). Greenhouse, Lever, and Ashby each read their own
 environment variables (or `/settings`, see below) and fetch nothing when
-unconfigured — this is not an error. JSearch and Adzuna are different:
-they're driven by every account's own roles and countries, set at
-`/profile` (see "Per-account role/country ingestion" below) — an instance
-where no account has set any roles/countries yet gets nothing from these
-two sources, same as an unconfigured adapter today.
+unconfigured — this is not an error. JSearch, Adzuna, and LinkedIn are
+different: they're driven by every account's own roles and countries, set
+at `/profile` (see "Per-account role/country ingestion" below) — an
+instance where no account has set any roles/countries yet gets nothing
+from these three sources, same as an unconfigured adapter today.
 
 - **JSearch** (aggregator, sourced from Google for Jobs — covers Indeed/
   LinkedIn/Glassdoor listings indirectly): needs `JSEARCH_API_KEY` (a
@@ -41,6 +41,15 @@ two sources, same as an unconfigured adapter today.
   [developer.adzuna.com](https://developer.adzuna.com/)). Like JSearch,
   its search terms and countries come from account roles/countries, not
   from env vars here.
+- **LinkedIn** (via the
+  [LinkedIn Job Search API](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/linkedin-job-search-api)
+  on RapidAPI): needs `LINKEDIN_API_KEY`. Like JSearch and Adzuna, its
+  search terms and countries come from account roles/countries. Each call
+  covers the last 24 hours (matching the once-daily ingestion cadence).
+  This API has no raw job-description field, only two AI-generated
+  summaries (`ai_core_responsibilities`/`ai_requirements_summary`), which
+  are concatenated into `description` — judging sees thinner text for a
+  LinkedIn posting than for a JSearch/Adzuna one.
 - **Greenhouse / Lever / Ashby** (direct from a company's own public job
   board — no API key needed for any of the three):
   `GREENHOUSE_COMPANIES`, `LEVER_COMPANIES`, `ASHBY_COMPANIES`. Each is a
@@ -60,15 +69,16 @@ Each signed-in account sets up to 5 roles and 3 countries at `/profile`
 ("Roles & countries"). Once saved, matching postings show up automatically
 right on `/profile`, below the editor — one search per saved (role,
 country) pair, merged and deduped, so there's no separate step to go find
-them. JSearch and Adzuna are queried once per distinct `(role, country)`
-pair across *every* account with both set — if two accounts both want
-"staff software engineer" in "us", that's one API call for that pair, not
-two. Countries are limited to the set `lib/ingestion/adzuna-countries.ts`
-lists (Adzuna's supported codes, the stricter of the two adapters). An
-account with no roles or no countries set contributes nothing to these two
-sources, same as an ingestion adapter with no config does today; postings
-from other accounts' pulls are still visible to them through the normal
-shared `postings` search.
+them. JSearch, Adzuna, and LinkedIn are each queried once per distinct
+`(role, country)` pair across *every* account with both set — if two
+accounts both want "staff software engineer" in "us", that's one API call
+per adapter for that pair, not two. Countries are limited to the set
+`lib/ingestion/adzuna-countries.ts` lists (Adzuna's supported codes, the
+strictest of the three per-account adapters). An account with no roles or
+no countries set contributes nothing to these three sources, same as an
+ingestion adapter with no config does today; postings from other
+accounts' pulls are still visible to them through the normal shared
+`postings` search.
 
 API keys and the Greenhouse/Lever/Ashby company lists can also be set from
 the running app at `/settings`, instead of editing these env vars — any

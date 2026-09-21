@@ -8,6 +8,7 @@ const ADAPTER_ENV_VARS = [
   'ADZUNA_APP_KEY',
   'ADZUNA_COUNTRIES',
   'ADZUNA_QUERIES',
+  'LINKEDIN_API_KEY',
   'GREENHOUSE_COMPANIES',
   'LEVER_COMPANIES',
   'ASHBY_COMPANIES',
@@ -56,7 +57,7 @@ describe('GET /api/cron/ingest-postings', () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.rows).toHaveLength(5);
+    expect(body.rows).toHaveLength(6);
     expect(body.rows.every((row: { fetched: number }) => row.fetched === 0)).toBe(true);
   });
 });

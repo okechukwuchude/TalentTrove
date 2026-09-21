@@ -2,6 +2,7 @@ export type SettingKey =
   | 'jsearch_api_key'
   | 'adzuna_app_id'
   | 'adzuna_app_key'
+  | 'linkedin_api_key'
   | 'greenhouse_companies'
   | 'lever_companies'
   | 'ashby_companies';
@@ -12,6 +13,7 @@ export const SETTINGS: SettingConfig[] = [
   { key: 'jsearch_api_key', envVar: 'JSEARCH_API_KEY', secret: true, label: 'JSearch API key' },
   { key: 'adzuna_app_id', envVar: 'ADZUNA_APP_ID', secret: true, label: 'Adzuna app ID' },
   { key: 'adzuna_app_key', envVar: 'ADZUNA_APP_KEY', secret: true, label: 'Adzuna app key' },
+  { key: 'linkedin_api_key', envVar: 'LINKEDIN_API_KEY', secret: true, label: 'LinkedIn Job Search API key' },
   {
     key: 'greenhouse_companies',
     envVar: 'GREENHOUSE_COMPANIES',

@@ -73,7 +73,7 @@ belongs in `packages/shared`, not duplicated.
   the judging pipeline and any UI that filters or reports on judgments read
   this same ordered list.
 - **Three scheduled pipelines**, each independent and each a no-op when its
-  env vars aren't set: postings ingestion (`lib/ingestion/`, five source
+  env vars aren't set: postings ingestion (`lib/ingestion/`, six source
   adapters), judging (`lib/judging/run-judging.ts`, via OpenRouter),
   resume tailoring (`lib/tailoring/run-tailoring.ts`, via OpenRouter). Each
   has a `GET`/`POST` cron route under `app/api/cron/` gated by

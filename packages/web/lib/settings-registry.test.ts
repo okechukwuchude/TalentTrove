@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SETTINGS } from './settings-registry.ts';
 
 describe('settings-registry', () => {
-  it('has exactly the six expected setting keys with correct secret flags', () => {
+  it('has exactly the seven expected setting keys with correct secret flags', () => {
     const actual = [...SETTINGS].map((s) => ({ key: s.key, secret: s.secret })).sort((a, b) => a.key.localeCompare(b.key));
     expect(actual).toEqual([
       { key: 'adzuna_app_id', secret: true },
@@ -11,6 +11,7 @@ describe('settings-registry', () => {
       { key: 'greenhouse_companies', secret: false },
       { key: 'jsearch_api_key', secret: true },
       { key: 'lever_companies', secret: false },
+      { key: 'linkedin_api_key', secret: true },
     ]);
   });
 
