@@ -16,7 +16,12 @@ function databaseUrl(): string {
 /** Lazily built and cached, so tests can set DATABASE_URL before first use. */
 export function getDb(): Db {
   if (!cached) {
-    cachedClient = postgres(databaseUrl());
+    // prepare: false — a pooled Neon connection (PgBouncer, transaction mode)
+    // doesn't support session-scoped prepared statements, which postgres.js
+    // uses by default; disabling them is harmless against a direct
+    // connection too, so this is safe regardless of which DATABASE_URL kind
+    // is configured.
+    cachedClient = postgres(databaseUrl(), { prepare: false });
     cached = drizzle(cachedClient, { schema });
   }
   return cached;

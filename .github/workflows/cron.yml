@@ -1,0 +1,39 @@
+name: Cron (judge + tailor)
+
+# Vercel Hobby only allows a cron job to run once a day, and judge-postings /
+# tailor-resumes are designed to run four times a day (see
+# packages/web/vercel.json, which keeps only ingest-postings on Vercel's own
+# Cron). These two routes are triggered from here instead, on the same
+# cadence/offsets the app originally shipped with. Each route is gated by
+# CRON_SECRET exactly like Vercel's own cron calls would be — see
+# packages/web/app/api/cron/*/route.ts's isAuthorized check.
+on:
+  schedule:
+    - cron: '0 1,7,13,19 * * *'
+    - cron: '0 2,8,14,20 * * *'
+  workflow_dispatch:
+
+jobs:
+  judge:
+    if: github.event.schedule == '0 1,7,13,19 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call judge-postings
+        run: |
+          curl --fail-with-body -sS "$PROD_URL/api/cron/judge-postings" \
+            -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+  tailor:
+    if: github.event.schedule == '0 2,8,14,20 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call tailor-resumes
+        run: |
+          curl --fail-with-body -sS "$PROD_URL/api/cron/tailor-resumes" \
+            -H "Authorization: Bearer $CRON_SECRET"
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

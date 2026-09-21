@@ -127,11 +127,15 @@ call, the same way an unconfigured postings-ingestion source does.
 
 Judging runs two ways, mirroring ingestion:
 
-- **Scheduled**, via `GET /api/cron/judge-postings`, which Vercel Cron
-  calls per `vercel.json`'s schedule (every 6 hours, starting an hour after
-  the once-daily ingestion run; the other three daily runs judge whatever's
-  accumulated since). This route requires `CRON_SECRET` (shared with the
-  ingestion cron route) — without it, every call is refused with `401`.
+- **Scheduled**, via `GET /api/cron/judge-postings`. Vercel Hobby only
+  allows a cron job to run once a day, so this route isn't in
+  `vercel.json` — it's called four times a day (starting an hour after
+  the once-daily ingestion run) by the `judge` job in
+  `.github/workflows/cron.yml` instead, which needs the `PROD_URL` and
+  `CRON_SECRET` repo secrets set. On a Pro plan (or any host without that
+  limit) this can move back into `vercel.json` unchanged. This route
+  requires `CRON_SECRET` (shared with the ingestion cron route) —
+  without it, every call is refused with `401`.
 - **Manually**, via `npm run db:judge -w packages/web`, against whatever
   `DATABASE_URL` is set to.
 
@@ -172,10 +176,12 @@ not its fonts, colors, or layout (see
 
 Tailoring runs two ways, mirroring judging:
 
-- **Scheduled**, via `GET /api/cron/tailor-resumes`, which Vercel Cron
-  calls per `vercel.json`'s schedule (every 6 hours, offset an hour after
-  judging). This route requires `CRON_SECRET` (shared with the other cron
-  routes) — without it, every call is refused with `401`.
+- **Scheduled**, via `GET /api/cron/tailor-resumes`. Same Hobby cron-frequency
+  limit as judging above — this route runs four times a day (offset an
+  hour after judging) via the `tailor` job in
+  `.github/workflows/cron.yml`, not `vercel.json`. This route requires
+  `CRON_SECRET` (shared with the other cron routes) — without it, every
+  call is refused with `401`.
 - **Manually**, via `npm run db:tailor -w packages/web`, against whatever
   `DATABASE_URL` is set to.
 
