@@ -9,6 +9,7 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
   let profileDb: typeof import('../profile-db.ts');
   let routinesDb: typeof import('../routines-db.ts');
   let runJudging: typeof import('./run-judging.ts')['runJudging'];
+  let TIME_BUDGET_MS: typeof import('./run-judging.ts')['TIME_BUDGET_MS'];
   let sql: ReturnType<typeof postgres>;
 
   beforeAll(async () => {
@@ -17,7 +18,7 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     authDb = await import('../auth-db.ts');
     profileDb = await import('../profile-db.ts');
     routinesDb = await import('../routines-db.ts');
-    ({ runJudging } = await import('./run-judging.ts'));
+    ({ runJudging, TIME_BUDGET_MS } = await import('./run-judging.ts'));
     sql = postgres(testDatabaseUrl!);
   });
 
@@ -351,5 +352,60 @@ describe.skipIf(!testDatabaseUrl)('runJudging', () => {
     const globalSummary = summary.find((row) => row.userId === globalUserId);
     expect(routineSummary).toEqual({ userId: routineUserId, judged: 1, failed: 0 });
     expect(globalSummary).toEqual({ userId: globalUserId, judged: 1, failed: 0 });
+  });
+
+  it('stops judging once the time budget is exhausted, leaving the rest of the batch for the next run', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertTextDocument(userId, 'background', 'Backend engineer.');
+    await insertPosting({ title: 'A' });
+    await insertPosting({ title: 'B' });
+
+    // Simulate a single judge call taking longer than the whole budget, so
+    // the clock crosses the deadline the moment the first call returns.
+    let clock = 0;
+    const slowJudge = async () => {
+      clock += TIME_BUDGET_MS + 10_000;
+      return { verdict: 'fair' as const, reasoning: 'ok' };
+    };
+
+    const summary = await runJudging(slowJudge, () => clock);
+
+    expect(summary).toEqual([{ userId, judged: 1, failed: 0 }]);
+    const rows = await sql`select * from judgments where user_id = ${userId}`;
+    expect(rows).toHaveLength(1);
+
+    // Next scheduled run, with a real clock, picks up where this one left off.
+    const secondRun = await runJudging(async () => ({ verdict: 'fair', reasoning: 'ok' }));
+    expect(secondRun).toEqual([{ userId, judged: 1, failed: 0 }]);
+  });
+
+  it('stops starting new accounts once the time budget is exhausted, leaving them for the next run', async () => {
+    const firstUserId = await freshUserId();
+    const secondUserId = await freshUserId();
+    await profileDb.upsertTextDocument(firstUserId, 'background', 'Backend engineer.');
+    await profileDb.upsertTextDocument(secondUserId, 'background', 'Data scientist.');
+    // A single posting, unjudged by either account: postings aren't scoped to
+    // an account, so this is enough for each account to have exactly one
+    // candidate, keeping the second run's expectation unambiguous regardless
+    // of which account the budget guard defers.
+    await insertPosting();
+
+    let clock = 0;
+    const slowJudge = async () => {
+      clock += TIME_BUDGET_MS + 10_000;
+      return { verdict: 'fair' as const, reasoning: 'ok' };
+    };
+
+    // Account processing order isn't specified, so only assert the invariant
+    // the budget guard exists to enforce: one account gets processed this
+    // run and the other is deferred to the next one.
+    const summary = await runJudging(slowJudge, () => clock);
+
+    expect(summary).toHaveLength(1);
+    expect(summary[0]!.judged).toBe(1);
+    const deferredUserId = summary[0]!.userId === firstUserId ? secondUserId : firstUserId;
+
+    const secondRun = await runJudging(async () => ({ verdict: 'fair', reasoning: 'ok' }));
+    expect(secondRun).toEqual([{ userId: deferredUserId, judged: 1, failed: 0 }]);
   });
 });

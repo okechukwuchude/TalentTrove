@@ -77,6 +77,7 @@ describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
   let authDb: typeof import('../auth-db.ts');
   let profileDb: typeof import('../profile-db.ts');
   let runTailoring: typeof import('./run-tailoring.ts')['runTailoring'];
+  let TIME_BUDGET_MS: typeof import('./run-tailoring.ts')['TIME_BUDGET_MS'];
   let sql: ReturnType<typeof postgres>;
 
   beforeAll(async () => {
@@ -84,7 +85,7 @@ describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
     await runMigrations(testDatabaseUrl!);
     authDb = await import('../auth-db.ts');
     profileDb = await import('../profile-db.ts');
-    ({ runTailoring } = await import('./run-tailoring.ts'));
+    ({ runTailoring, TIME_BUDGET_MS } = await import('./run-tailoring.ts'));
     sql = postgres(testDatabaseUrl!);
   });
 
@@ -300,5 +301,62 @@ describe.skipIf(!testDatabaseUrl)('runTailoring', () => {
     expect(summary).toEqual([{ userId, tailored: 2, failed: 0 }]);
     const rows = await sql`select * from tailored_resumes where user_id = ${userId}`;
     expect(rows).toHaveLength(2);
+  });
+
+  it('stops tailoring once the time budget is exhausted, leaving the rest of the batch for the next run', async () => {
+    const userId = await freshUserId();
+    await profileDb.upsertFileDocument(userId, 'resume', RESUME_PDF, 'resume.pdf');
+    const postingA = await insertPosting('A');
+    const postingB = await insertPosting('B');
+    await insertJudgment(userId, postingA, 'strong');
+    await insertJudgment(userId, postingB, 'strong');
+
+    // Simulate a single tailoring call taking longer than the whole budget,
+    // so the clock crosses the deadline the moment postingA's call returns.
+    let clock = 0;
+    const slowTailor = async () => {
+      clock += TIME_BUDGET_MS + 10_000;
+      return TAILORED_CONTENT;
+    };
+
+    const summary = await runTailoring(alwaysStyle, slowTailor, () => clock);
+
+    expect(summary).toEqual([{ userId, tailored: 1, failed: 0 }]);
+    const rows = await sql`select posting_id from tailored_resumes where user_id = ${userId}`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.posting_id).toBe(postingA);
+
+    // Next scheduled run, with a real clock, picks up where this one left off.
+    const secondRun = await runTailoring(alwaysStyle, alwaysTailor);
+    expect(secondRun).toEqual([{ userId, tailored: 1, failed: 0 }]);
+  });
+
+  it('stops starting new accounts once the time budget is exhausted, leaving them for the next run', async () => {
+    const firstUserId = await freshUserId();
+    const secondUserId = await freshUserId();
+    await profileDb.upsertFileDocument(firstUserId, 'resume', RESUME_PDF, 'resume.pdf');
+    await profileDb.upsertFileDocument(secondUserId, 'resume', RESUME_PDF, 'resume.pdf');
+    const postingForFirst = await insertPosting('First account posting');
+    const postingForSecond = await insertPosting('Second account posting');
+    await insertJudgment(firstUserId, postingForFirst, 'strong');
+    await insertJudgment(secondUserId, postingForSecond, 'strong');
+
+    let clock = 0;
+    const slowTailor = async () => {
+      clock += TIME_BUDGET_MS + 10_000;
+      return TAILORED_CONTENT;
+    };
+
+    // Account processing order isn't specified, so only assert the invariant
+    // the budget guard exists to enforce: one account gets processed this
+    // run and the other is deferred to the next one, never both cut short.
+    const summary = await runTailoring(alwaysStyle, slowTailor, () => clock);
+
+    expect(summary).toHaveLength(1);
+    expect(summary[0]).toEqual({ userId: summary[0]!.userId, tailored: 1, failed: 0 });
+    const deferredUserId = summary[0]!.userId === firstUserId ? secondUserId : firstUserId;
+
+    const secondRun = await runTailoring(alwaysStyle, alwaysTailor);
+    expect(secondRun).toEqual([{ userId: deferredUserId, tailored: 1, failed: 0 }]);
   });
 });

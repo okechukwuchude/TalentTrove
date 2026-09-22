@@ -17,6 +17,20 @@ type PostingRow = typeof postings.$inferSelect;
 const DEFAULT_BATCH_SIZE = 25;
 
 /**
+ * How long runTailoring() is willing to keep starting new style-extraction
+ * or tailoring calls before it stops and returns whatever it's finished so
+ * far. Set well under the cron route's `maxDuration = 300` (see
+ * app/api/cron/tailor-resumes/route.ts) so the function always has time to
+ * finish its current insert and respond normally, rather than getting killed
+ * mid-request by Vercel's FUNCTION_INVOCATION_TIMEOUT — which returns
+ * nothing to the caller and drops whatever candidate was in flight. Anything
+ * left over when the budget runs out is picked up by the next scheduled run,
+ * since the candidate query already skips postings that already have a
+ * tailored_resumes row.
+ */
+export const TIME_BUDGET_MS = 270_000;
+
+/**
  * The lowest verdict a judgment can carry and still be worth tailoring a
  * resume for. Derived from the shared four-word scale (`@talenttrove/shared`'s
  * `VERDICTS`) rather than spelled out as a literal array here, so this file
@@ -73,6 +87,7 @@ function buildPostingText(posting: PostingRow): string {
 export async function runTailoring(
   callStyleExtraction: typeof extractStyleProfile = extractStyleProfile,
   callTailor: typeof tailorResumeContent = tailorResumeContent,
+  now: () => number = Date.now,
 ): Promise<TailoringSummary[]> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   const model = process.env.JUDGE_MODEL;
@@ -81,8 +96,10 @@ export async function runTailoring(
   const limit = batchSize();
   const summaries: TailoringSummary[] = [];
   const accounts = await getDb().select({ id: users.id }).from(users);
+  const deadline = now() + TIME_BUDGET_MS;
 
   for (const account of accounts) {
+    if (now() >= deadline) break;
     try {
       const [resumeDoc] = await getDb()
         .select()
@@ -138,6 +155,7 @@ export async function runTailoring(
       let tailored = 0;
       let failed = 0;
       for (const { posting } of candidates) {
+        if (now() >= deadline) break;
         try {
           const content = await callTailor(apiKey, model, {
             resumeText,

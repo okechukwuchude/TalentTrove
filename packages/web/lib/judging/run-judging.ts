@@ -16,6 +16,19 @@ type PostingRow = typeof postings.$inferSelect;
 
 const DEFAULT_BATCH_SIZE = 25;
 
+/**
+ * How long runJudging() is willing to keep starting new model calls before
+ * it stops and returns whatever it's finished so far. Set well under the
+ * cron route's `maxDuration = 300` (see app/api/cron/judge-postings/route.ts)
+ * so the function always has time to finish its current insert and respond
+ * normally, rather than getting killed mid-request by Vercel's
+ * FUNCTION_INVOCATION_TIMEOUT — which returns nothing to the caller and
+ * drops whatever candidate was in flight. Anything left over when the budget
+ * runs out is picked up by the next scheduled run, since the candidate
+ * query already skips postings that already have a judgment.
+ */
+export const TIME_BUDGET_MS = 270_000;
+
 const ROUTINE_MIN_VERDICT = 'fair';
 const ROUTINE_FILE_VERDICTS = VERDICTS.filter((verdict) => rankOf(verdict) >= rankOf(ROUTINE_MIN_VERDICT));
 
@@ -83,7 +96,10 @@ function buildPostingText(posting: PostingRow): string {
   return lines.join('\n');
 }
 
-export async function runJudging(callModel: typeof callJudgeModel = callJudgeModel): Promise<JudgingSummary[]> {
+export async function runJudging(
+  callModel: typeof callJudgeModel = callJudgeModel,
+  now: () => number = Date.now,
+): Promise<JudgingSummary[]> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   const model = process.env.JUDGE_MODEL;
   if (!apiKey || !model) return [];
@@ -91,8 +107,10 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
   const limit = batchSize();
   const summaries: JudgingSummary[] = [];
   const accounts = await getDb().select({ id: users.id }).from(users);
+  const deadline = now() + TIME_BUDGET_MS;
 
   for (const account of accounts) {
+    if (now() >= deadline) break;
     try {
       const docs = await getDb().select().from(profileDocuments).where(eq(profileDocuments.userId, account.id));
       const profileText = await buildProfileText(docs);
@@ -109,6 +127,7 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
         let judged = 0;
         let failed = 0;
         for (const routine of accountRoutines) {
+          if (now() >= deadline) break;
           try {
             const routineFilters = routine.filters as RoutineFilters;
             const conditions = buildSearchConditions(routineFilters);
@@ -123,6 +142,7 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
             const systemPrompt = routine.judge_prompt?.trim() ? routine.judge_prompt : DEFAULT_JUDGE_PROMPT;
 
             for (const { posting } of candidates) {
+              if (now() >= deadline) break;
               try {
                 const result = await callModel(apiKey, {
                   model,
@@ -177,6 +197,7 @@ export async function runJudging(callModel: typeof callJudgeModel = callJudgeMod
       let judged = 0;
       let failed = 0;
       for (const { posting } of candidates) {
+        if (now() >= deadline) break;
         try {
           const result = await callModel(apiKey, {
             model,
